@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# NestJS build output
+dist/
+
+# Environment files (jangan pernah commit secret)
+.env
+.env.local
+
+# Uploads (kalau tidak mau ikut ter-share juga)
+backend/uploads/
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# Environment files lain (misal .env.production)
+.env.*
+!.env.example
+
+# Cache TypeScript dan Turbo
+*.tsbuildinfo
+.turbo/

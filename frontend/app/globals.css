@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'Gentle Hearts';
+  src: url('/fonts/GentleHearts-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gentle Hearts';
+  src: url('/fonts/HelveticaNowDisplay-CnMed.otf') format('opentype');
+  unicode-range: U+0030-0039;
+  /* hanya karakter 0-9 */
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Helvetica Now Display Cn Med';
+  src: url('/fonts/HelveticaNowDisplay-CnMed.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  background-color: #F7F2E9;
+  color: #2A1F17;
+}
+
+body {
+  background-color: #F7F2E9;
+  color: #2A1F17;
+}
+
+.landing-page {
+  position: relative;
+  isolation: isolate;
+}
+
+/* perlu tinggi explicit containerr */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.75rem;
+}
+
+.guyub-map-pin {
+  background: transparent;
+  border: 0;
+}
+
+.guyub-neon-glow {
+  box-shadow: 0 0 12px 2px rgba(250, 204, 21, 0.8);
+}
+
+/* Arsir miring 45° untuk post inaktif di Daftar Kebutuhan.
+   Sedikit transparan tapi tetap menutupi konten; hilang saat di-hover. */
+.guyub-stripes {
+  position: relative;
+}
+
+.guyub-stripes::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(42, 31, 23, 0.18) 0,
+      rgba(42, 31, 23, 0.18) 10px,
+      transparent 10px,
+      transparent 20px);
+  border-radius: inherit;
+}
+
+.guyub-stripes:hover::after {
+  display: none;
+}
+
+/* Pola garis miring transparan untuk latar belakang halaman dashboard.
+     Warna tanah (cokelat) dengan alpha rendah agar tetap lembut. */
+.guyub-pattern {
+  background-color: #F7F2E9;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(139, 94, 60, 0.12) 0,
+      rgba(139, 94, 60, 0.12) 1.5px,
+      transparent 1px,
+      transparent 25px);
+}
+
+.guyub-map-pin__head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 3px solid #ffffff;
+  border-radius: 50% 50% 50% 0;
+  box-shadow: 0 2px 5px rgb(42 31 23 / 35%);
+  transform: rotate(-45deg);
+}
+
+.guyub-map-pin__head--blue {
+  background: #2563eb;
+}
+
+.guyub-map-pin__head--red {
+  background: #dc2626;
+}
+
+.guyub-map-pin__head--green {
+  background: #16a34a;
+}
+
+.guyub-map-pin__head--gray {
+  background: #4b5563;
+}
+
+.guyub-map-pin__icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  transform: rotate(45deg);
+}
+
+.guyub-map-pin__icon-svg {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+}
+
+.guyub-map-pin--draft .guyub-map-pin__head {
+  animation: guyub-pin-wiggle 0.55s ease-in-out 2s infinite;
+}
+
+.animate-quest-pulse {
+  animation: quest-pulse 2s ease-in-out infinite;
+}
+
+@keyframes quest-pulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes guyub-pin-wiggle {
+
+  0%,
+  100% {
+    transform: rotate(-45deg) translate(0, 0);
+  }
+
+  25% {
+    transform: rotate(-39deg) translate(2px, -1px);
+  }
+
+  75% {
+    transform: rotate(-51deg) translate(-2px, 1px);
+  }
+}

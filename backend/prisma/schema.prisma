@@ -1,0 +1,403 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =========================================
+// ENUMS
+// =========================================
+
+enum Role {
+  WARGA
+  RELAWAN
+  ADMIN
+}
+
+enum BantuanStatus {
+  MENUNGGU_VERIFIKASI
+  AKTIF
+  DIPROSES
+  SELESAI
+  DITOLAK
+}
+
+enum BantuanKategori {
+  MEDIS
+  KERUSAKAN_RUMAH
+  TENAGA_KERJA
+  LAINNYA
+}
+
+enum WasiatKategori {
+  RESEP
+  KERAJINAN
+  PERTANIAN
+  FILOSOFI
+  LITERASI_DIGITAL
+  LITERASI_KEUANGAN
+  LITERASI_KESEHATAN
+  SEJARAH_BUDAYA
+  BEBAS
+}
+
+enum PreferensiRelawan {
+  SEMUA
+  PEMUDA_18_30
+  BERPENGALAMAN
+}
+
+enum KesediaanStatus {
+  AKTIF
+  DIBATALKAN
+}
+
+enum UmkmNeedStatus {
+  DIBUKA
+  DALAM_PROSES
+  SELESAI
+}
+
+// =========================================
+// USER & AUTH
+// =========================================
+
+model User {
+  id            String   @id @default(uuid())
+  nama          String
+  avatarUrl     String?
+  bio           String?
+  kontak        String   @unique // no HP, dipakai juga untuk OTP
+  dusun         String?
+  rt            String?
+  rw            String?
+  passwordHash  String
+  role          Role     @default(WARGA)
+  keahlian      String[] @default([])
+  tanggalLahir  DateTime?
+  ketersediaan  String?  @db.VarChar(200)
+  kontakVerified Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  refreshTokens     RefreshToken[]
+  otpCodes          OtpCode[]
+  bantuanRequests   BantuanRequest[]        @relation("BantuanPembuat")
+  bantuanVerifikasi BantuanRequest[]        @relation("BantuanVerifikator")
+  kesediaanBantu    KesediaanBantu[]
+  wasiatList        Wasiat[]
+  wasiatSaved       WasiatSaved[]
+  wasiatComments    WasiatComment[]
+  wasiatProgress    WasiatProgress[]
+  umkmNeeds         UmkmNeed[]
+  umkmResponses     UmkmResponse[]
+  acaraDibuat       Acara[]                 @relation("AcaraPembuat")
+  acaraAbsensi      AcaraAbsensi[]
+  acaraPeserta      AcaraPeserta[]
+  messagesSent      Message[]               @relation("MessageSender")
+  messagesReceived  Message[]               @relation("MessageReceiver")
+  notesWritten      ProfileNote[] @relation("NoteAuthor")
+  notesReceived     ProfileNote[] @relation("NoteTarget")
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revoked   Boolean  @default(false)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model ProfileNote {
+  id           String   @id @default(uuid())
+  authorId     String
+  author       User     @relation("NoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUserId String
+  targetUser   User     @relation("NoteTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  isi          String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([authorId, targetUserId])
+  @@map("profile_notes")
+}
+
+model OtpCode {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("otp_codes")
+}
+
+// =========================================
+// 1. PETA BUTUH GUYUB
+// =========================================
+
+model BantuanRequest {
+  id            String          @id @default(uuid())
+  judul         String
+  deskripsi     String
+  kategori      BantuanKategori
+  status        BantuanStatus   @default(MENUNGGU_VERIFIKASI)
+  latitude      Float
+  longitude     Float
+  alamat        String
+  foto          String[]        @default([])
+  dibutuhkanSebelum DateTime?
+
+  pembuatId     String
+  pembuat       User            @relation("BantuanPembuat", fields: [pembuatId], references: [id])
+
+  preferensiRelawan PreferensiRelawan @default(SEMUA)
+  selesaiAt     DateTime?
+
+  verifikatorId String?
+  verifikator   User?           @relation("BantuanVerifikator", fields: [verifikatorId], references: [id])
+  verifiedAt    DateTime?
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  kesediaanBantu KesediaanBantu[]
+
+  @@map("bantuan_requests")
+}
+
+model KesediaanBantu {
+  id            String          @id @default(uuid())
+  requestId     String
+  request       BantuanRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  catatan       String?
+  status        KesediaanStatus @default(AKTIF)
+  dibatalkanAt  DateTime?
+  createdAt     DateTime        @default(now())
+
+  @@unique([requestId, userId])
+  @@map("kesediaan_bantu")
+}
+
+// =========================================
+// 2. WASIAT NGAPAK
+// =========================================
+
+model Wasiat {
+  id          String         @id @default(uuid())
+  judul       String
+  kategori    WasiatKategori @default(BEBAS)
+  isi         String
+  poinKiat    String[]       // beberapa poin kiat singkat
+  foto         String[]       @default([])
+  penulisId   String
+  penulis     User           @relation(fields: [penulisId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  saved       WasiatSaved[]
+  comments    WasiatComment[]
+  langkah     WasiatLangkah[]
+  progress    WasiatProgress[]
+
+  @@map("wasiat")
+}
+
+model WasiatLangkah {
+  id        String            @id @default(uuid())
+  wasiatId  String
+  wasiat    Wasiat            @relation(fields: [wasiatId], references: [id], onDelete: Cascade)
+  urutan    Int
+  judul     String
+  tujuan    String
+  kuis      Json
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  progress  WasiatProgress[]
+
+  @@unique([wasiatId, urutan])
+  @@map("wasiat_langkah")
+}
+
+model WasiatProgress {
+  id              String        @id @default(uuid())
+  userId          String
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wasiatId        String
+  wasiat          Wasiat        @relation(fields: [wasiatId], references: [id], onDelete: Cascade)
+  langkahId       String
+  langkah         WasiatLangkah @relation(fields: [langkahId], references: [id], onDelete: Cascade)
+  skor            Int           @default(0)
+  lulus           Boolean       @default(false)
+  percobaan       Int           @default(1)
+  selesaiAt       DateTime?
+  feedbackCatatan String?
+  feedbackAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([userId, langkahId])
+  @@index([wasiatId, userId])
+  @@index([langkahId, userId])
+  @@map("wasiat_progress")
+}
+
+model WasiatSaved {
+  id        String   @id @default(uuid())
+  wasiatId  String
+  wasiat    Wasiat   @relation(fields: [wasiatId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([wasiatId, userId])
+  @@map("wasiat_saved")
+}
+
+model WasiatComment {
+  id        String   @id @default(uuid())
+  wasiatId  String
+  wasiat    Wasiat   @relation(fields: [wasiatId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  isi       String
+  rating    Int      @default(5)
+  createdAt DateTime @default(now())
+
+  @@map("wasiat_comments")
+}
+
+// =========================================
+// 4. UMKM DIBANTU
+// =========================================
+
+model UmkmNeed {
+  id          String         @id @default(uuid())
+  namaUsaha   String
+  kebutuhan   String         // mis. "butuh bantuan foto produk"
+  deskripsi   String
+  status      UmkmNeedStatus @default(DIBUKA)
+  pemilikId   String
+  pemilik     User           @relation(fields: [pemilikId], references: [id])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  responses   UmkmResponse[]
+  foto        String[]       @default([])
+  dibutuhkanSebelum DateTime?
+
+  @@map("umkm_needs")
+}
+
+model UmkmResponse {
+  id         String   @id @default(uuid())
+  needId     String
+  need       UmkmNeed @relation(fields: [needId], references: [id], onDelete: Cascade)
+  penolongId String
+  penolong   User     @relation(fields: [penolongId], references: [id])
+  pesan      String
+  createdAt  DateTime @default(now())
+
+  @@map("umkm_responses")
+}
+
+// =========================================
+// 5. GUYUB ACARA
+// =========================================
+
+model Acara {
+  id           String   @id @default(uuid())
+  nama         String
+  deskripsi    String
+  jenis        String   // kerja bakti, ronda, sedekah bumi, dll
+  lokasi       String
+  waktuMulai   DateTime
+  waktuSelesai DateTime?
+  foto         String[] @default([])
+  kodeQr       String? @unique
+  kodeQrExpiresAt DateTime?
+  targetHadir  Int     @default(1)
+  kodeAbsen    String?
+  pembuatId    String
+  pembuat      User     @relation("AcaraPembuat", fields: [pembuatId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  logistik     AcaraLogistik[]
+  absensi      AcaraAbsensi[]
+  peserta      AcaraPeserta[]
+
+  @@map("acara")
+}
+
+model AcaraLogistik {
+  id           String   @id @default(uuid())
+  acaraId      String
+  acara        Acara    @relation(fields: [acaraId], references: [id], onDelete: Cascade)
+  itemNama     String
+  jumlah       Int      @default(1)
+  penanggungJawab String?
+  dipenuhi     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@map("acara_logistik")
+}
+
+model AcaraAbsensi {
+  id        String   @id @default(uuid())
+  acaraId   String
+  acara     Acara    @relation(fields: [acaraId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  hadir     Boolean  @default(true)
+  waktuAbsen DateTime @default(now())
+
+  @@unique([acaraId, userId])
+  @@map("acara_absensi")
+}
+
+model AcaraPeserta {
+  id        String   @id @default(uuid())
+  acaraId   String
+  acara     Acara    @relation(fields: [acaraId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kode      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@unique([acaraId, userId])
+  @@unique([acaraId, kode])
+  @@map("acara_peserta")
+}
+
+// =========================================
+// 6. PESAN DIREK (DM)
+// =========================================
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  isi        String
+  createdAt  DateTime @default(now())
+
+  @@index([receiverId, senderId])
+  @@index([senderId, receiverId])
+  @@map("messages")
+}

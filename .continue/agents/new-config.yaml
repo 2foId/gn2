@@ -1,0 +1,14 @@
+{
+  "models": [
+    {
+      "title": "Ollama Llama 3",
+      "provider": "ollama",
+      "model": "llama3"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Ollama CodeLlama",
+    "provider": "ollama",
+    "model": "codellama:7b"
+  }
+}
