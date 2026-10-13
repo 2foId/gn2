@@ -173,8 +173,8 @@ export function ProfileOverlay() {
                 {isMine && <div className="mt-4">
                     <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Tema tampilan</p>
                     <div className="inline-flex rounded-full bg-guyub-krem p-1">
-                        <button type="button" aria-label="Gunakan tema terang" aria-pressed={(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT'} onClick={() => void changeTheme('LIGHT')} className={`rounded-full p-2 transition duration-200 ${(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT' ? 'bg-guyub-gula' : ''}`}><img src="/icons/matahari.svg" alt="" className="h-5 w-5" /></button>
-                        <button type="button" aria-label="Gunakan tema gelap" aria-pressed={currentUser?.themePreference === 'DARK'} onClick={() => void changeTheme('DARK')} className={`rounded-full p-2 transition duration-200 ${currentUser?.themePreference === 'DARK' ? 'bg-guyub-gula' : ''}`}><img src="/icons/bulan.svg" alt="" className="h-5 w-5" /></button>
+                        <button type="button" aria-label="Gunakan tema terang" aria-pressed={(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT'} onClick={() => void changeTheme('LIGHT')} className={`rounded-full p-2 transition duration-200 ${(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT' ? 'bg-guyub-gula' : ''}`}><img src="/icons/matahari.svg" alt="" className={`h-5 w-5 ${(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT' ? '' : 'dark:brightness-0 dark:invert'}`} /></button>
+                        <button type="button" aria-label="Gunakan tema gelap" aria-pressed={currentUser?.themePreference === 'DARK'} onClick={() => void changeTheme('DARK')} className={`rounded-full p-2 transition duration-200 ${currentUser?.themePreference === 'DARK' ? 'bg-guyub-gula' : ''}`}><img src="/icons/bulan.svg" alt="" className={`h-5 w-5 ${currentUser?.themePreference === 'DARK' ? '' : 'dark:brightness-0 dark:invert'}`} /></button>
                     </div>
                     {themeError && <p role="alert" className="mt-2 font-body text-sm text-guyub-merahBata">{themeError}</p>}
                 </div>}

@@ -105,7 +105,7 @@ export function Navbar() {
           </button>
           <button type="button" onClick={() => user && window.dispatchEvent(new CustomEvent('guyub:open-profile', { detail: { userId: user.id } }))} className="flex items-center gap-2 text-right">
             {user && <UserAvatar user={user} size="sm" />}
-            {user && <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4" />{currency.toLocaleString('id-ID')}</span>}
+            {user && <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />{currency.toLocaleString('id-ID')}</span>}
             <div>
               <p className="font-body text-sm font-medium text-stone-800 hover:underline">{user?.nama}</p>
               <p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">

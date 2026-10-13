@@ -48,6 +48,10 @@ html.dark .bg-guyub-krem {
   background-color: #292524 !important;
 }
 
+html.dark .hover\:bg-guyub-krem:hover {
+  background-color: #292524 !important;
+}
+
 html.dark .text-guyub-bambuDark,
 html.dark .text-stone-800,
 html.dark .text-stone-700 {

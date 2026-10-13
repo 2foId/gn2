@@ -510,7 +510,7 @@ export default function PetaPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       {(() => {
                         const preference = PREFERENSI_RELAWAN.find((entry) => entry.value === item.preferensiRelawan) ?? PREFERENSI_RELAWAN[0];
-                        return <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-semibold text-guyub-bambuDark"><img src={preference.icon} alt="" className="h-4 w-4" />{preference.label}</span>;
+                        return <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-semibold text-guyub-bambuDark"><img src={preference.icon} alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />{preference.label}</span>;
                       })()}
                       {item.dibutuhkanSebelum && (() => {
                         const parsedDeadline = parseISO(item.dibutuhkanSebelum);

@@ -160,7 +160,7 @@ export default function DampakPage() {
                         <div className={`w-2 shrink-0 ${block.strip}`} aria-hidden="true" />
                         <div className="flex w-full flex-col gap-5 p-5 md:flex-row md:items-center md:gap-6 md:p-7">
                             <div className="flex shrink-0 items-center gap-4 md:block">
-                                <img src={block.icon} alt="" className="h-8 w-8 md:mb-3" />
+                                <img src={block.icon} alt="" className="h-8 w-8 md:mb-3 dark:brightness-0 dark:invert" />
                                 <p className="font-display text-7xl leading-none tabular-nums text-guyub-bambuDark md:text-8xl">{formatNumber(block.number)}</p>
                             </div>
                             <div className="min-w-0">
@@ -178,7 +178,7 @@ export default function DampakPage() {
                     <div className="w-2 shrink-0 bg-guyub-bambuDark" aria-hidden="true" />
                     <div className="flex w-full flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:gap-8 md:p-7">
                         <div className="flex items-center gap-4 md:block">
-                            <img src="/icons/sdm.svg" alt="" className="h-8 w-8 md:mb-3" />
+                            <img src="/icons/sdm.svg" alt="" className="h-8 w-8 md:mb-3 dark:brightness-0 dark:invert" />
                             <p className="font-display text-7xl leading-none tabular-nums text-guyub-bambuDark md:text-8xl">{formatNumber(metrics.relawanUsia18_30)}</p>
                         </div>
                         <div className="flex-1">
