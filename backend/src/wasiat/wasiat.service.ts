@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateWasiatDto } from './dto/create-wasiat.dto';
 import { CreateLangkahDto } from './dto/create-langkah.dto';
 import { Prisma, WasiatKategori } from '@prisma/client';
+import { currencyUntukLevelBaru, hitungLevel } from '../users/level';
+import { acakKuis } from './quiz-randomizer';
 
 @Injectable()
 export class WasiatService {
@@ -15,18 +17,18 @@ export class WasiatService {
       const soal = item as Record<string, any>;
       return {
         pertanyaan: String(soal.pertanyaan ?? ''),
-        opsi: Array.isArray(soal.opsi) ? soal.opsi.map((opt) => String(opt)) : [],
+        opsi: Array.isArray(soal.opsi) ? soal.opsi.slice(0, 3).map((opt) => String(opt)) : [],
       };
     });
   }
 
-  private validateKuis(kuis: CreateLangkahDto['kuis']) {
-    if (!Array.isArray(kuis) || kuis.length < 3 || kuis.length > 5) {
-      throw new BadRequestException('Kuis harus memiliki 3 sampai 5 soal');
+  private validateKuis(kuis: Array<{ opsi: string[]; jawabanBenar: number }>, minSoal = 3, maxSoal = 5) {
+    if (!Array.isArray(kuis) || kuis.length < minSoal || kuis.length > maxSoal) {
+      throw new BadRequestException(`Kuis harus memiliki ${minSoal} sampai ${maxSoal} soal`);
     }
     kuis.forEach((soal, index) => {
-      if (!Array.isArray(soal.opsi) || soal.opsi.length < 2 || soal.opsi.length > 4) {
-        throw new BadRequestException(`Soal ${index + 1} harus memiliki 2 sampai 4 pilihan`);
+      if (!Array.isArray(soal.opsi) || soal.opsi.length !== 3) {
+        throw new BadRequestException(`Soal ${index + 1} harus memiliki tepat 3 pilihan`);
       }
       if (!Number.isInteger(soal.jawabanBenar) || soal.jawabanBenar < 0 || soal.jawabanBenar >= soal.opsi.length) {
         throw new BadRequestException(`Indeks jawaban benar soal ${index + 1} tidak valid`);
@@ -34,9 +36,46 @@ export class WasiatService {
     });
   }
 
+  private validateStoredKuis(kuis: Array<Record<string, any>>) {
+    if (kuis.length < 3 || kuis.length > 10) throw new BadRequestException('Kuis harus memiliki 3 sampai 10 soal');
+    kuis.forEach((soal, index) => {
+      if (!Array.isArray(soal.opsi) || soal.opsi.length !== 3) {
+        throw new BadRequestException(`Soal ${index + 1} belum memiliki tepat 3 pilihan`);
+      }
+      const correct = Number(soal.jawabanBenar);
+      if (!Number.isInteger(correct) || correct < 0 || correct > 2) {
+        throw new BadRequestException(`Jawaban benar soal ${index + 1} tidak valid`);
+      }
+    });
+  }
+
   create(userId: string, dto: CreateWasiatDto) {
-    return this.prisma.wasiat.create({
-      data: { ...dto, penulisId: userId },
+    const { quest, ...wasiatData } = dto;
+    if (quest) {
+      if (quest.length < 1 || quest.length > 5) throw new BadRequestException('Wasiat harus memiliki 1 sampai 5 quest');
+      quest.forEach((item, questIndex) => {
+        if (item.kuis.length < 3 || item.kuis.length > 10) {
+          throw new BadRequestException(`Quest ${questIndex + 1} harus memiliki 3 sampai 10 soal`);
+        }
+        this.validateKuis(item.kuis, 3, 10);
+      });
+    }
+
+    return this.prisma.$transaction(async (transaction) => {
+      const wasiat = await transaction.wasiat.create({ data: { ...wasiatData, penulisId: userId, isTemplate: false } });
+      for (const [index, item] of (quest ?? []).entries()) {
+        await transaction.wasiatLangkah.create({
+          data: {
+            wasiatId: wasiat.id,
+            urutan: index + 1,
+            judul: item.judul,
+            tujuan: item.tujuan,
+            kuis: acakKuis(item.kuis) as unknown as Prisma.InputJsonArray,
+            jawabanDiacak: true,
+          },
+        });
+      }
+      return wasiat;
     });
   }
 
@@ -75,12 +114,16 @@ export class WasiatService {
 
   async createLangkah(wasiatId: string, userId: string, dto: CreateLangkahDto) {
     const wasiat = await this.findOne(wasiatId);
+    if (wasiat.isTemplate) throw new ForbiddenException('Quest untuk template tidak dapat diubah');
     if (wasiat.penulisId !== userId) {
       throw new ForbiddenException('Hanya penulis wasiat yang dapat menambahkan quest');
     }
+    const jumlahQuest = await this.prisma.wasiatLangkah.count({ where: { wasiatId } });
+    if (jumlahQuest >= 5) throw new BadRequestException('Maksimal 5 quest per wasiat');
     this.validateKuis(dto.kuis);
+    const kuisDiacak = acakKuis(dto.kuis);
     const langkah = await this.prisma.wasiatLangkah.create({
-      data: { ...dto, wasiatId, kuis: dto.kuis as unknown as Prisma.InputJsonArray },
+      data: { ...dto, wasiatId, kuis: kuisDiacak as unknown as Prisma.InputJsonArray, jawabanDiacak: true },
     });
     return { ...langkah, kuis: this.sanitizeKuis(langkah.kuis) };
   }
@@ -128,9 +171,7 @@ export class WasiatService {
     if (!langkah) throw new NotFoundException('Langkah wasiat tidak ditemukan');
 
     const kuis = Array.isArray(langkah.kuis) ? langkah.kuis as Array<Record<string, any>> : [];
-    if (kuis.length < 3 || kuis.length > 5) {
-      throw new BadRequestException('Kuis langkah ini belum siap');
-    }
+    this.validateStoredKuis(kuis);
 
     if (jawaban.length !== kuis.length) {
       throw new BadRequestException('Jumlah jawaban tidak sesuai dengan jumlah soal');
@@ -164,28 +205,50 @@ export class WasiatService {
     const skor = Math.round((benar / kuis.length) * 100);
     const lulus = skor >= 70;
 
-    const existing = await this.prisma.wasiatProgress.findUnique({
-      where: { userId_langkahId: { userId, langkahId: langkah.id } },
-    });
-    const lulusPertamaKali = lulus && !existing?.lulus;
+    let xpDidapat = 0;
+    let levelBaru: number | null = null;
+    const progress = await this.prisma.$transaction(async (transaction) => {
+      const existing = await transaction.wasiatProgress.findUnique({
+        where: { userId_langkahId: { userId, langkahId: langkah.id } },
+      });
+      const lulusPertamaKali = lulus && !existing?.lulus;
+      const updatedProgress = await transaction.wasiatProgress.upsert({
+        where: { userId_langkahId: { userId, langkahId: langkah.id } },
+        update: {
+          skor,
+          lulus: existing?.lulus || lulus,
+          percobaan: { increment: 1 },
+          selesaiAt: lulus && !existing?.selesaiAt ? new Date() : existing?.selesaiAt ?? null,
+        },
+        create: {
+          userId,
+          wasiatId,
+          langkahId: langkah.id,
+          skor,
+          lulus,
+          percobaan: 1,
+          selesaiAt: lulus ? new Date() : null,
+        },
+      });
 
-    const progress = await this.prisma.wasiatProgress.upsert({
-      where: { userId_langkahId: { userId, langkahId: langkah.id } },
-      update: {
-        skor,
-        lulus: existing?.lulus || lulus,
-        percobaan: { increment: 1 },
-        selesaiAt: lulus && !existing?.selesaiAt ? new Date() : existing?.selesaiAt ?? null,
-      },
-      create: {
-        userId,
-        wasiatId,
-        langkahId: langkah.id,
-        skor,
-        lulus,
-        percobaan: 1,
-        selesaiAt: lulus ? new Date() : null,
-      },
+      if (lulusPertamaKali && wasiat.penulisId !== userId) {
+        const currentUser = await transaction.user.findUnique({ where: { id: userId }, select: { xpTotal: true, level: true } });
+        if (currentUser) {
+          xpDidapat = 100;
+          const nextXpTotal = currentUser.xpTotal + xpDidapat;
+          const nextLevel = hitungLevel(nextXpTotal).level;
+          let currencyReward = 0;
+          for (let level = currentUser.level + 1; level <= nextLevel; level += 1) {
+            currencyReward += currencyUntukLevelBaru(level);
+          }
+          await transaction.user.update({
+            where: { id: userId },
+            data: { xpTotal: nextXpTotal, level: nextLevel, currency: { increment: currencyReward } },
+          });
+          if (nextLevel > currentUser.level) levelBaru = nextLevel;
+        }
+      }
+      return updatedProgress;
     });
 
     const semuaLangkah = await this.prisma.wasiatLangkah.findMany({ where: { wasiatId }, orderBy: { urutan: 'asc' } });
@@ -198,8 +261,9 @@ export class WasiatService {
       lulus,
       benar,
       total: kuis.length,
-      xpDidapat: lulusPertamaKali ? 100 : 0,
-      badgeBaru: lulusPertamaKali ? {
+      xpDidapat,
+      levelBaru,
+      badgeBaru: xpDidapat > 0 ? {
         kategori: wasiat.kategori,
         penjelajahKearifan: questAkhirLulus,
       } : null,
@@ -224,7 +288,7 @@ export class WasiatService {
       orderBy: { updatedAt: 'desc' },
     });
     return {
-      totalXp: progress.filter((item) => item.lulus).length * 100,
+      totalXp: progress.filter((item) => item.lulus && item.wasiat.penulis.id !== userId).length * 100,
       progress,
     };
   }

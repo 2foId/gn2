@@ -87,7 +87,7 @@ export default function WasiatDetailPage() {
             setWasiat(detailRes.data);
             setSteps(stepsRes.data);
             const userProgress = progressRes.data.progress ?? [];
-            setTotalXp(userProgress.filter((entry: any) => entry.wasiatId === id && entry.lulus).length * 100);
+            setTotalXp(userProgress.filter((entry: any) => entry.wasiatId === id && entry.lulus && entry.wasiat.penulis.id !== user?.id).length * 100);
             if (user && detailRes.data.penulis?.id === user.id) {
                 const feedbackRes = await api.get(`/wasiat/${id}/feedback/menunggu`);
                 setFeedbackQueue(feedbackRes.data);
@@ -95,7 +95,7 @@ export default function WasiatDetailPage() {
                 setFeedbackQueue([]);
             }
         } catch (err: any) {
-            setError(err.response?.data?.message ?? 'Gagal memuat wasiat. Silakan coba lagi.');
+            setError(err.response?.data?.message);
         } finally {
             setLoading(false);
         }
@@ -111,9 +111,10 @@ export default function WasiatDetailPage() {
         try {
             const response = await api.post(`/wasiat/${id}/langkah/${quest.urutan}/submit`, { jawaban: selected });
             setResults((current) => ({ ...current, [quest.id]: response.data }));
+            if (response.data.xpDidapat > 0) window.dispatchEvent(new Event('guyub:level-updated'));
             await loadData();
         } catch (err: any) {
-            setError(err.response?.data?.message ?? 'Jawaban gagal dikirim. Silakan coba lagi.');
+            setError(err.response?.data?.message);
         } finally {
             setSubmitting(false);
         }
@@ -139,7 +140,7 @@ export default function WasiatDetailPage() {
             setFeedbackQueue((current) => current.filter((entry) => entry.id !== progressId));
             setFeedbackNotes((current) => ({ ...current, [progressId]: '' }));
         } catch (err: any) {
-            setError(err.response?.data?.message ?? 'Catatan gagal dikirim.');
+            setError(err.response?.data?.message);
         }
     }
 
@@ -152,7 +153,7 @@ export default function WasiatDetailPage() {
             setRating(0);
             await loadData();
         } catch (err: any) {
-            setError(err.response?.data?.message ?? 'Komentar gagal dikirim.');
+            setError(err.response?.data?.message);
         }
     }
 
@@ -293,13 +294,33 @@ export default function WasiatDetailPage() {
                                 {result.lulus ? <div className="mt-3 flex flex-wrap gap-2"><span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-body text-sm font-semibold text-guyub-bambuDark"><img src="/icons/xp.svg" alt="" className="h-5 w-5" />+{result.xpDidapat} XP</span>{result.badgeBaru && <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 font-body text-sm font-semibold text-guyub-bambuDark"><img src={result.badgeBaru.penjelajahKearifan ? '/icons/badge-penjelajah.svg' : CATEGORY_BADGES[result.badgeBaru.kategori]} alt="" className="h-5 w-5" />{result.badgeBaru.penjelajahKearifan ? 'Penjelajah Kearifan' : (CATEGORY_LABELS[result.badgeBaru.kategori] ?? result.badgeBaru.kategori)}</span>}</div> : <p className="mt-2 font-body text-sm text-stone-700">Pelajari lagi tujuannya dan coba lagi. Tidak ada pengurangan progress.</p>}
                             </div>}
                             <section className="mt-5"><h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Tujuan</h3><p className="mt-2 whitespace-pre-line font-body text-sm leading-6 text-stone-700">{quest.tujuan}</p></section>
-                            <section className="mt-5"><h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Kuis</h3><div className="mt-3 space-y-4">
-                                {quest.kuis.map((question, questionIndex) => <fieldset key={`${quest.id}-${questionIndex}`} className="rounded-xl bg-guyub-krem p-4"><legend className="font-body text-sm font-semibold text-guyub-bambuDark">{questionIndex + 1}. {question.pertanyaan}</legend><div className="mt-3 space-y-2">{question.opsi.map((option, optionIndex) => {
+                            <section className="mt-5"><h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Kuis</h3><div className="mt-3">
+                                {quest.kuis.map((question, questionIndex) => {
                                     const correctIndex = result?.jawabanBenar[questionIndex];
-                                    const isCorrect = result && correctIndex === optionIndex;
-                                    const isSelected = selected[questionIndex] === optionIndex;
-                                    return <label key={`${quest.id}-${questionIndex}-${optionIndex}`} className={`flex min-h-11 items-center gap-3 rounded-lg border px-3 py-2 font-body text-sm transition-colors ${isCorrect ? 'border-guyub-bambuDark bg-white' : isSelected ? 'border-guyub-bambuDark bg-white' : 'border-stone-300 bg-white/70'} ${done || result ? 'cursor-default' : 'cursor-pointer'}`}><input type="radio" name={`quest-${quest.id}-question-${questionIndex}`} checked={isSelected} disabled={done || !!result} onChange={() => setAnswers((current) => { const next = [...(current[quest.id] ?? [])]; next[questionIndex] = optionIndex; return { ...current, [quest.id]: next }; })} className="h-5 w-5 accent-guyub-bambuDark" />{option}{isCorrect && <img src="/icons/centang.svg" alt="Jawaban benar" className="ml-auto h-5 w-5" />}</label>;
-                                })}</div></fieldset>)}
+                                    const selectedIndex = selected[questionIndex];
+                                    const answeredCorrectly = result && selectedIndex === correctIndex;
+                                    const connectorColor = answeredCorrectly ? 'border-solid border-green-500' : result ? 'border-solid border-red-500' : 'border-dashed border-stone-300';
+                                    return <div key={`${quest.id}-${questionIndex}`}>
+                                        <div className={`flex justify-center ${questionIndex % 2 ? 'md:justify-end md:pr-[12%]' : 'md:justify-start md:pl-[12%]'}`}>
+                                            <fieldset className="w-full rounded-xl border-2 border-yellow-400 bg-white p-4 shadow-sm md:w-[82%]">
+                                                <legend className="px-1 font-body text-sm font-semibold text-guyub-bambuDark">{questionIndex + 1}. {question.pertanyaan}</legend>
+                                                <div className="mt-2 space-y-2">{question.opsi.map((option, optionIndex) => {
+                                                    const isCorrect = !!result && correctIndex === optionIndex;
+                                                    const isWrongSelection = !!result && selectedIndex === optionIndex && correctIndex !== optionIndex;
+                                                    const highlighted = isCorrect || isWrongSelection;
+                                                    const optionColor = isCorrect ? 'border-green-500 bg-green-500 text-white' : isWrongSelection ? 'border-red-500 bg-red-500 text-white' : 'border-stone-300 bg-white text-stone-700';
+                                                    return <label key={`${quest.id}-${questionIndex}-${optionIndex}`} className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 py-2 font-body text-sm transition-colors duration-200 ${optionColor} ${done || result ? 'cursor-default' : 'cursor-pointer'}`}>
+                                                        <input type="radio" name={`quest-${quest.id}-question-${questionIndex}`} checked={selectedIndex === optionIndex} disabled={done || !!result} onChange={() => setAnswers((current) => { const next = [...(current[quest.id] ?? [])]; next[questionIndex] = optionIndex; return { ...current, [quest.id]: next }; })} className="h-4 w-4 accent-guyub-bambuDark" />
+                                                        <span className={`w-6 font-body font-bold ${highlighted ? 'text-white' : 'text-guyub-tanah'}`}>{String.fromCharCode(65 + optionIndex)}.</span>
+                                                        <span className="flex-1">{option}</span>
+                                                        {highlighted && <img src={isCorrect ? '/icons/centang.svg' : '/icons/silang.svg'} alt="" className="h-5 w-5 brightness-0 invert" />}
+                                                    </label>;
+                                                })}</div>
+                                            </fieldset>
+                                        </div>
+                                        {questionIndex < quest.kuis.length - 1 && <div aria-hidden="true" className={`mx-auto h-7 w-0 border-l-[3px] ${connectorColor}`} />}
+                                    </div>;
+                                })}
                             </div></section>
                             {result?.lulus ? <button type="button" onClick={() => focusNextQuest(quest)} className="mt-6 w-full rounded-full bg-guyub-bambuDark px-5 py-3 font-body text-sm font-semibold text-white">{finalQuest ? 'Kembali ke pohon quest' : 'Lanjut ke quest berikutnya'}</button> : result && !result.lulus ? <button type="button" onClick={() => { setResults((current) => { const next = { ...current }; delete next[quest.id]; return next; }); setAnswers((current) => ({ ...current, [quest.id]: [] })); }} className="mt-6 w-full rounded-full bg-guyub-bambuDark px-5 py-3 font-body text-sm font-semibold text-white">Coba lagi</button> : !done ? <button type="button" disabled={selected.length !== quest.kuis.length || submitting} onClick={() => void submitQuest(quest)} className="mt-6 w-full rounded-full bg-guyub-bambuDark px-5 py-3 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">{submitting ? 'Mengirim...' : 'Kirim Jawaban'}</button> : <p className="mt-6 rounded-xl bg-guyub-krem p-3 font-body text-sm text-guyub-bambuDark">Quest ini sudah lulus. Kuis dapat dilihat kembali.</p>}
                         </div>

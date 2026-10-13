@@ -17,6 +17,11 @@ enum Role {
   ADMIN
 }
 
+enum ThemePreference {
+  LIGHT
+  DARK
+}
+
 enum BantuanStatus {
   MENUNGGU_VERIFIKASI
   AKTIF
@@ -76,6 +81,10 @@ model User {
   rw            String?
   passwordHash  String
   role          Role     @default(WARGA)
+  xpTotal       Int      @default(0)
+  level         Int      @default(1)
+  currency      Int      @default(0)
+  themePreference ThemePreference @default(LIGHT)
   keahlian      String[] @default([])
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
@@ -204,6 +213,7 @@ model Wasiat {
   poinKiat    String[]       // beberapa poin kiat singkat
   foto         String[]       @default([])
   penulisId   String
+  isTemplate  Boolean        @default(false)
   penulis     User           @relation(fields: [penulisId], references: [id])
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -223,6 +233,7 @@ model WasiatLangkah {
   judul     String
   tujuan    String
   kuis      Json
+  jawabanDiacak Boolean @default(false)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   progress  WasiatProgress[]

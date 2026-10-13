@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
@@ -18,9 +19,31 @@ export function Navbar() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
+  const [currency, setCurrency] = useState(0);
   const visibleMenu = user && (user.role === 'ADMIN' || user.role === 'RELAWAN')
     ? [...menu, { href: '/dashboard/dampak', label: 'Dampak' }]
     : menu;
+
+  useEffect(() => {
+    if (!user) {
+      setCurrency(0);
+      return;
+    }
+    let active = true;
+    const loadCurrency = () => {
+      api.get('/users/me/level').then((response) => {
+        if (active) setCurrency(response.data.currency ?? 0);
+      }).catch(() => {
+        if (active) setCurrency(0);
+      });
+    };
+    loadCurrency();
+    window.addEventListener('guyub:level-updated', loadCurrency);
+    return () => {
+      active = false;
+      window.removeEventListener('guyub:level-updated', loadCurrency);
+    };
+  }, [user?.id]);
 
   async function handleLogout() {
     try {
@@ -82,6 +105,7 @@ export function Navbar() {
           </button>
           <button type="button" onClick={() => user && window.dispatchEvent(new CustomEvent('guyub:open-profile', { detail: { userId: user.id } }))} className="flex items-center gap-2 text-right">
             {user && <UserAvatar user={user} size="sm" />}
+            {user && <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4" />{currency.toLocaleString('id-ID')}</span>}
             <div>
               <p className="font-body text-sm font-medium text-stone-800 hover:underline">{user?.nama}</p>
               <p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">

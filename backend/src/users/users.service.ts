@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, ThemePreference } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { hitungLevel } from './level';
 
 @Injectable()
 export class UsersService {
@@ -29,6 +30,32 @@ export class UsersService {
 
   findById(id: string) {
     return this.prisma.user.findUnique({ where: { id } });
+  }
+
+  async getLevel(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { level: true, xpTotal: true, currency: true },
+    });
+    if (!user) throw new NotFoundException('Pengguna tidak ditemukan');
+    return { ...hitungLevel(user.xpTotal), currency: user.currency };
+  }
+
+  updateTheme(id: string, theme: ThemePreference) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { themePreference: theme },
+      select: {
+        id: true,
+        nama: true,
+        kontak: true,
+        role: true,
+        dusun: true,
+        avatarUrl: true,
+        bio: true,
+        themePreference: true,
+      },
+    });
   }
 
   async findPublicProfile(id: string) {
@@ -65,6 +92,7 @@ export class UsersService {
         keahlian: true,
         ketersediaan: true,
         tanggalLahir: true,
+        themePreference: true,
         createdAt: true,
       },
     });
@@ -90,6 +118,7 @@ export class UsersService {
         keahlian: true,
         ketersediaan: true,
         tanggalLahir: true,
+        themePreference: true,
         createdAt: true,
       },
     });

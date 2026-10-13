@@ -99,6 +99,7 @@ export class BantuanService {
         ...item,
         pembuat: safeMaker,
         kesediaanBantu: safeSupporters,
+        cocokPreferensi,
       };
     }).filter((item) => item.cocokPreferensi));
   }

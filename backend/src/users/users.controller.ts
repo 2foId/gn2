@@ -4,10 +4,29 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
+import { UpdateThemeDto } from './dto/update-theme.dto';
 
 @Controller('users')
 export class UsersController {
     constructor(private usersService: UsersService) { }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me/level')
+    getMineLevel(@CurrentUser('id') userId: string) {
+        return this.usersService.getLevel(userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Patch('me/theme')
+    updateTheme(@CurrentUser('id') userId: string, @Body() dto: UpdateThemeDto) {
+        return this.usersService.updateTheme(userId, dto.theme);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Get('me')
+    findMe(@CurrentUser('id') userId: string) {
+        return this.usersService.findMyProfile(userId);
+    }
 
     @UseGuards(JwtAuthGuard)
     @Get('me/profile')

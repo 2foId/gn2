@@ -3,6 +3,7 @@ import type { Config } from 'tailwindcss';
 // Palet terinspirasi kearifan lokal Purbalingga: hijau bambu, cokelat tanah,
 // dan aksen kuning gula kelapa — bukan default ungu/biru template AI.
 const config: Config = {
+  darkMode: 'class',
   content: [
     './app/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',

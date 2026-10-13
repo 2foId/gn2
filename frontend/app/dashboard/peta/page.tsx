@@ -70,6 +70,7 @@ export default function PetaPage() {
   const [batalAlasan, setBatalAlasan] = useState('');
   const [batalError, setBatalError] = useState<string | null>(null);
   const [menuKesediaanId, setMenuKesediaanId] = useState<string | null>(null);
+  const [cancelledTooltipId, setCancelledTooltipId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     judul: '',
@@ -108,12 +109,27 @@ export default function PetaPage() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    if (!cancelledTooltipId) return;
+    const timeout = window.setTimeout(() => setCancelledTooltipId(null), 3000);
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (event.target instanceof Element && !event.target.closest(`[data-cancelled-card="${cancelledTooltipId}"]`)) {
+        setCancelledTooltipId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => {
+      window.clearTimeout(timeout);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  }, [cancelledTooltipId]);
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
     const allErrors = validateForm();
-    setTouched({ judul: true, deskripsi: true, alamat: true, latitude: true, longitude: true, kategori: true });
+    setTouched({ judul: true, deskripsi: true, alamat: true, latitude: true, longitude: true, kategori: true, tenggat: true });
     if (Object.keys(allErrors).length > 0) {
       return;
     }
@@ -191,6 +207,7 @@ export default function PetaPage() {
     if (!form.judul.trim()) newErrors.judul = 'Judul wajib diisi';
     if (form.deskripsi.length < 10) newErrors.deskripsi = 'Minimal 10 karakter';
     if (!form.alamat.trim()) newErrors.alamat = 'Alamat wajib diisi';
+    if (!form.dibutuhkanSebelum) newErrors.tenggat = 'Tenggat wajib diisi.';
     setErrors(newErrors);
     return newErrors;
   }
@@ -317,13 +334,18 @@ export default function PetaPage() {
             </div>
           </div>
           <div className="max-w-sm">
-            <label className="block font-body text-sm font-medium text-stone-700">Tenggat (tanggal dan jam)</label>
+            <label className="block font-body text-sm font-medium text-stone-700">Tenggat (tanggal dan jam) <span className="text-red-500">*</span></label>
             <input
               type="datetime-local"
+              required
               value={form.dibutuhkanSebelum}
-              onChange={(event) => setForm({ ...form, dibutuhkanSebelum: event.target.value })}
-              className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body"
+              onChange={(event) => {
+                setForm({ ...form, dibutuhkanSebelum: event.target.value });
+                setErrors((current) => ({ ...current, tenggat: event.target.value ? '' : 'Tenggat wajib diisi.' }));
+              }}
+              className={`mt-1 w-full rounded-lg border px-4 py-2 font-body ${errors.tenggat ? 'border-red-500' : 'border-stone-300'}`}
             />
+            {!form.dibutuhkanSebelum && <p className="mt-1 font-body text-xs text-guyub-merahBata">Tenggat wajib diisi.</p>}
           </div>
           <fieldset>
             <legend className="font-body text-sm font-medium text-stone-700">Siapa yang kamu harapkan membantu?</legend>
@@ -350,7 +372,8 @@ export default function PetaPage() {
           </fieldset>
           <button
             type="submit"
-            className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95"
+            disabled={!form.dibutuhkanSebelum}
+            className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Kirim Permintaan
           </button>
@@ -460,14 +483,22 @@ export default function PetaPage() {
                 const kategoriObj = KATEGORI.find((k) => k.value === item.kategori) || KATEGORI[3];
                 const isCreator = user?.id === item.pembuat?.id;
                 const hasClickedKesediaan = !!kesediaanStatus[item.id] || !!item.kesediaanBantu?.some((k) => k.user.id === user?.id);
+                const isCancelled = kesediaanStatus[item.id] === 'DIBATALKAN';
                 return (
-                  <div key={item.id} className={`relative rounded-2xl bg-white p-4 shadow-sm ${item.status === 'SELESAI' ? 'opacity-60' : ''} ${kesediaanStatus[item.id] === 'AKTIF' ? 'guyub-neon-glow border-2 border-yellow-400' : 'border border-green-600/40'}`}>
+                  <div
+                    key={item.id}
+                    data-cancelled-card={isCancelled ? item.id : undefined}
+                    onMouseEnter={() => isCancelled && setCancelledTooltipId(item.id)}
+                    onClick={() => isCancelled && setCancelledTooltipId(item.id)}
+                    className={`group relative rounded-2xl bg-white p-4 shadow-sm ${item.status === 'SELESAI' ? 'opacity-60' : ''} ${isCancelled ? 'opacity-50 grayscale cursor-not-allowed' : ''} ${kesediaanStatus[item.id] === 'AKTIF' ? 'guyub-neon-glow border-2 border-yellow-400' : 'border border-green-600/40'}`}
+                  >
+                    {isCancelled && <div className={`absolute left-1/2 top-2 z-30 -translate-x-1/2 rounded-lg bg-stone-900 px-3 py-2 font-body text-sm text-white dark:bg-stone-100 dark:text-stone-900 ${cancelledTooltipId === item.id ? 'visible' : 'invisible'} group-hover:visible`} role="tooltip">Anda tidak bisa membantu permintaan ini.</div>}
                     <div className="mb-2 flex items-center justify-start gap-2">
                       {kesediaanStatus[item.id] === 'AKTIF' && <div className="relative">
                         <button type="button" aria-label="Menu kesediaan bantuan" aria-expanded={menuKesediaanId === item.id} onClick={() => setMenuKesediaanId(menuKesediaanId === item.id ? null : item.id)} className="rounded-full px-2 text-xl leading-none text-guyub-bambuDark hover:bg-guyub-krem">⋮</button>
                         {menuKesediaanId === item.id && <div className="absolute left-0 top-full z-20 mt-1 min-w-40 rounded-xl border border-stone-300 bg-white p-1 shadow-lg"><button type="button" onClick={() => { setMenuKesediaanId(null); setConfirmBatalId(item.id); }} className="w-full rounded-lg px-3 py-2 text-left font-body text-sm text-guyub-merahBata hover:bg-guyub-krem">Batalkan bantuan</button></div>}
                       </div>}
-                      <span className={`rounded-md px-2 py-1 font-body text-xs font-bold uppercase text-white ${item.status === 'SELESAI' ? 'bg-red-500' : item.status === 'AKTIF' ? 'bg-green-400' : 'bg-guyub-bambuDark'}`}>STATUS: {item.status.replace('_', ' ')}</span>
+                      <span className={`rounded-md px-2 py-1 font-body text-xs font-medium uppercase text-white ${item.status === 'SELESAI' ? 'bg-red-500' : item.status === 'AKTIF' ? 'bg-green-400' : 'bg-guyub-bambuDark'}`}>STATUS: {item.status.replace('_', ' ')}</span>
                     </div>
                     <div className="absolute right-3 top-3 flex items-center">
                       {item.kesediaanBantu?.slice(0, 4).map((supporter, index) => <div key={supporter.user.id} className={index ? '-ml-2' : ''}><UserAvatar user={supporter.user} size="sm" /></div>)}

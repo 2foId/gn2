@@ -5,11 +5,11 @@ import { ValidatorConstraint, ValidatorConstraintInterface } from 'class-validat
 @ValidatorConstraint({ name: 'futureDeadline', async: false })
 class FutureDeadlineConstraint implements ValidatorConstraintInterface {
   validate(value: string) {
-    return !value || new Date(value).getTime() > Date.now();
+    return value === undefined || value === null || value === '' || new Date(value).getTime() > Date.now();
   }
 
   defaultMessage() {
-    return 'Tenggat harus berada di masa depan';
+    return 'Tenggat harus berada di masa depan.';
   }
 }
 
@@ -25,9 +25,11 @@ export class CreateBantuanDto {
   @IsEnum(BantuanKategori)
   kategori: BantuanKategori;
 
+  @IsOptional()
   @IsNumber()
   latitude: number;
 
+  @IsOptional()
   @IsNumber()
   longitude: number;
 
@@ -39,10 +41,10 @@ export class CreateBantuanDto {
   @IsEnum(PreferensiRelawan, { message: 'Preferensi relawan tidak valid' })
   preferensiRelawan?: PreferensiRelawan;
 
-  @IsOptional()
-  @IsDateString()
+  @IsNotEmpty({ message: 'Tenggat wajib diisi.' })
+  @IsDateString({}, { message: 'Tenggat wajib diisi.' })
   @Validate(FutureDeadlineConstraint)
-  dibutuhkanSebelum?: string;
+  dibutuhkanSebelum: string;
 
   @IsOptional()
   @IsArray()

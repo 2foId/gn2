@@ -165,6 +165,7 @@ export class AuthService {
           dusun: user.dusun,
           avatarUrl: user.avatarUrl,
           bio: user.bio,
+          themePreference: user.themePreference,
         },
         ...tokens,
       };
@@ -231,7 +232,7 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.kontak, user.role);
     return {
-      user: { id: user.id, nama: user.nama, kontak: user.kontak, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio },
+      user: { id: user.id, nama: user.nama, kontak: user.kontak, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, themePreference: user.themePreference },
       ...tokens,
     };
   }

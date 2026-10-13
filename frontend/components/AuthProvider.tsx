@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 // Provider ini mencoba memulihkan sesi lewat httpOnly Refresh Token cookie yang masih ada.
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const setSession = useAuthStore((s) => s.setSession);
+  const setThemePreference = useAuthStore((s) => s.setThemePreference);
   const setInitialized = useAuthStore((s) => s.setInitialized);
   const isInitialized = useAuthStore((s) => s.isInitialized);
   const [checked, setChecked] = useState(false);
@@ -20,7 +21,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) setSession(res.data.user, res.data.accessToken);
       })
       .catch(() => {
-        // tidak ada sesi valid, biarkan user login manual
+        setThemePreference('LIGHT');
       })
       .finally(() => {
         if (mounted) {
@@ -31,7 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
     };
-  }, [setSession, setInitialized]);
+  }, [setSession, setInitialized, setThemePreference]);
 
   if (!checked && !isInitialized) {
     return (

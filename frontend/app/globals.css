@@ -27,13 +27,87 @@
 }
 
 body {
-  background-color: #F7F2E9;
-  color: #2A1F17;
+  background-color: #E9E1D2;
+  color: #2A4A32;
 }
 
-body {
-  background-color: #F7F2E9;
-  color: #2A1F17;
+html.dark body {
+  background-color: #1c1917;
+  color: #fafaf9;
+}
+
+html.dark .bg-white {
+  background-color: #292524 !important;
+}
+
+html.dark [class*="bg-white/"] {
+  background-color: #292524 !important;
+}
+
+html.dark .bg-guyub-krem {
+  background-color: #292524 !important;
+}
+
+html.dark .text-guyub-bambuDark,
+html.dark .text-stone-800,
+html.dark .text-stone-700 {
+  color: #fafaf9 !important;
+}
+
+html.dark .text-stone-600,
+html.dark .text-stone-500 {
+  color: #d6d3d1 !important;
+}
+
+html.dark .text-guyub-tanah,
+html.dark .text-guyub-bambu {
+  color: #d6d3d1 !important;
+}
+
+html.dark .text-guyub-merahBata {
+  color: #ef4444 !important;
+}
+
+html.dark .font-display {
+  color: #E0A639;
+}
+
+html.dark button.bg-guyub-bambuDark,
+html.dark a.bg-guyub-bambuDark {
+  background-color: #E0A639 !important;
+  color: #1c1917 !important;
+}
+
+html.dark .bg-green-400.text-white {
+  color: #1c1917 !important;
+}
+
+html.dark .bg-green-500.text-white,
+html.dark .bg-red-500.text-white {
+  color: #1c1917 !important;
+}
+
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #1c1917;
+  border-color: #57534e;
+  color: #fafaf9;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #a8a29e;
+}
+
+html.dark .leaflet-popup-content-wrapper,
+html.dark .leaflet-popup-tip {
+  background-color: #292524;
+  color: #fafaf9;
+}
+
+html.dark .leaflet-popup-content {
+  color: #fafaf9;
 }
 
 .landing-page {
@@ -83,10 +157,19 @@ body {
 /* Pola garis miring transparan untuk latar belakang halaman dashboard.
      Warna tanah (cokelat) dengan alpha rendah agar tetap lembut. */
 .guyub-pattern {
-  background-color: #F7F2E9;
+  background-color: #E9E1D2;
   background-image: repeating-linear-gradient(45deg,
-      rgba(139, 94, 60, 0.12) 0,
-      rgba(139, 94, 60, 0.12) 1.5px,
+      rgba(139, 94, 60, 0.18) 0,
+      rgba(139, 94, 60, 0.18) 1.5px,
+      transparent 1px,
+      transparent 25px);
+}
+
+html.dark .guyub-pattern {
+  background-color: #1c1917;
+  background-image: repeating-linear-gradient(45deg,
+      rgba(233, 225, 210, 0.08) 0,
+      rgba(233, 225, 210, 0.08) 1.5px,
       transparent 1px,
       transparent 25px);
 }

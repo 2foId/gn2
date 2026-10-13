@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
+import type { ThemePreference } from '@/lib/auth-store';
 
 interface Profile {
     id: string;
@@ -16,6 +17,7 @@ interface Profile {
     ketersediaan?: string | null;
     tanggalLahir?: string | null;
     kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
+    themePreference?: ThemePreference;
     createdAt: string;
 }
 
@@ -25,10 +27,20 @@ interface ProfileNote {
     updatedAt: string;
 }
 
+interface LevelInfo {
+    level: number;
+    xpTotal: number;
+    xpSaatIni: number;
+    xpDibutuhkan: number;
+    persen: number;
+}
+
 export function ProfileOverlay() {
     const currentUser = useAuthStore((state) => state.user);
     const updateUser = useAuthStore((state) => state.updateUser);
+    const setThemePreference = useAuthStore((state) => state.setThemePreference);
     const [profile, setProfile] = useState<Profile | null>(null);
+    const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({ nama: '', bio: '', avatarUrl: '', keahlian: [] as string[], ketersediaan: '', tanggalLahir: '' });
     const [skillDraft, setSkillDraft] = useState('');
@@ -36,6 +48,7 @@ export function ProfileOverlay() {
     const [notes, setNotes] = useState<ProfileNote[]>([]);
     const [noteText, setNoteText] = useState('');
     const [showNoteEditor, setShowNoteEditor] = useState(false);
+    const [themeError, setThemeError] = useState<string | null>(null);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -43,6 +56,12 @@ export function ProfileOverlay() {
             const response = await api.get(userId === currentUser?.id ? '/users/me/profile' : `/users/${userId}`);
             const data = response.data as Profile;
             setProfile(data);
+            if (userId === currentUser?.id) {
+                const levelResponse = await api.get('/users/me/level');
+                setLevelInfo(levelResponse.data);
+            } else {
+                setLevelInfo(null);
+            }
             setForm({
                 nama: data.nama,
                 bio: data.bio ?? '',
@@ -54,6 +73,7 @@ export function ProfileOverlay() {
             setEditing(false);
             setSkillDraft('');
             setError(null);
+            setThemeError(null);
             const notesResponse = await api.get(`/users/${userId}/notes`);
             setNotes(notesResponse.data);
             setNoteText('');
@@ -78,6 +98,23 @@ export function ProfileOverlay() {
         } catch (err: any) {
             const message = err.response?.data?.message;
             setError(Array.isArray(message) ? message.join('. ') : message ?? 'Profil gagal disimpan.');
+        }
+    }
+
+    async function changeTheme(theme: ThemePreference) {
+        const previous = currentUser?.themePreference ?? 'LIGHT';
+        if (theme === previous) return;
+        setThemePreference(theme);
+        setThemeError(null);
+        try {
+            const response = await api.patch('/users/me/theme', { theme });
+            setThemePreference(response.data.themePreference);
+            setProfile((current) => current ? { ...current, themePreference: response.data.themePreference } : current);
+            updateUser({ themePreference: response.data.themePreference });
+        } catch (err: any) {
+            setThemePreference(previous);
+            const message = err.response?.data?.message;
+            setThemeError(Array.isArray(message) ? message.join('. ') : message);
         }
     }
 
@@ -133,6 +170,22 @@ export function ProfileOverlay() {
                 )}
                 {profile.ketersediaan && <p className="mt-2 font-body text-sm text-stone-600">Ketersediaan: {profile.ketersediaan}</p>}
                 <p className="mt-2 font-body text-sm text-stone-500">Bergabung {new Date(profile.createdAt).toLocaleDateString('id-ID')}</p>
+                {isMine && <div className="mt-4">
+                    <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Tema tampilan</p>
+                    <div className="inline-flex rounded-full bg-guyub-krem p-1">
+                        <button type="button" aria-label="Gunakan tema terang" aria-pressed={(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT'} onClick={() => void changeTheme('LIGHT')} className={`rounded-full p-2 transition duration-200 ${(currentUser?.themePreference ?? 'LIGHT') === 'LIGHT' ? 'bg-guyub-gula' : ''}`}><img src="/icons/matahari.svg" alt="" className="h-5 w-5" /></button>
+                        <button type="button" aria-label="Gunakan tema gelap" aria-pressed={currentUser?.themePreference === 'DARK'} onClick={() => void changeTheme('DARK')} className={`rounded-full p-2 transition duration-200 ${currentUser?.themePreference === 'DARK' ? 'bg-guyub-gula' : ''}`}><img src="/icons/bulan.svg" alt="" className="h-5 w-5" /></button>
+                    </div>
+                    {themeError && <p role="alert" className="mt-2 font-body text-sm text-guyub-merahBata">{themeError}</p>}
+                </div>}
+                {isMine && levelInfo && <div className="mt-4 rounded-2xl bg-guyub-krem p-4">
+                    <div className="flex items-center gap-1" aria-label={`XP ${levelInfo.persen}% menuju level berikutnya`}>
+                        {Array.from({ length: 10 }, (_, index) => <span key={index} className={`h-3 flex-1 rounded-sm ${index < Math.round(levelInfo.persen / 10) ? 'bg-guyub-gula' : 'bg-guyub-krem ring-1 ring-guyub-bambuDark/20'}`} />)}
+                        <span className="ml-2 min-w-10 text-right font-body text-xs text-guyub-bambuDark">{levelInfo.persen}%</span>
+                    </div>
+                    <p className="mt-2 font-display text-lg font-semibold text-guyub-bambuDark">Level {levelInfo.level}</p>
+                    <p className="font-body text-xs text-stone-600">{levelInfo.xpSaatIni} / {levelInfo.xpDibutuhkan} XP</p>
+                </div>}
                 {profile.dusun && <p className="mt-1 font-body text-sm text-stone-500">{profile.dusun}</p>}
                 <div className="mt-5 border-t border-stone-100 pt-4">
                     <button type="button" onClick={() => setShowNoteEditor((current) => !current)} className="font-body text-sm font-medium text-guyub-bambuDark">📝 Catatan...</button>

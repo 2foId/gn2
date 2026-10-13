@@ -4,6 +4,7 @@ import {
     ArrayMinSize,
     IsArray,
     IsInt,
+    Max,
     IsString,
     Min,
     MinLength,
@@ -16,13 +17,14 @@ export class CreateKuisSoalDto {
     pertanyaan: string;
 
     @IsArray({ message: 'Pilihan jawaban harus berupa daftar' })
-    @ArrayMinSize(2, { message: 'Setiap soal harus memiliki minimal 2 pilihan' })
-    @ArrayMaxSize(4, { message: 'Setiap soal maksimal memiliki 4 pilihan' })
+    @ArrayMinSize(3, { message: 'Setiap soal harus memiliki tepat 3 pilihan' })
+    @ArrayMaxSize(3, { message: 'Setiap soal harus memiliki tepat 3 pilihan' })
     @IsString({ each: true, message: 'Setiap pilihan jawaban harus berupa teks' })
     opsi: string[];
 
     @IsInt({ message: 'Indeks jawaban benar harus berupa bilangan bulat' })
     @Min(0, { message: 'Indeks jawaban benar tidak boleh negatif' })
+    @Max(2, { message: 'Indeks jawaban benar harus 0, 1, atau 2' })
     jawabanBenar: number;
 }
 
@@ -40,8 +42,8 @@ export class CreateLangkahDto {
     tujuan: string;
 
     @IsArray({ message: 'Kuis harus berupa daftar soal' })
-    @ArrayMinSize(3, { message: 'Kuis harus memiliki 3 sampai 5 soal' })
-    @ArrayMaxSize(5, { message: 'Kuis harus memiliki 3 sampai 5 soal' })
+    @ArrayMinSize(3, { message: 'Kuis template harus memiliki 3 sampai 5 soal' })
+    @ArrayMaxSize(5, { message: 'Kuis template harus memiliki 3 sampai 5 soal' })
     @ValidateNested({ each: true })
     @Type(() => CreateKuisSoalDto)
     kuis: CreateKuisSoalDto[];

@@ -12,7 +12,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('guyub-theme');document.documentElement.classList.toggle('dark',t==='DARK')}catch(e){}` }} />
+      </head>
       <body className="font-body">
         <AuthProvider>{children}</AuthProvider>
       </body>
