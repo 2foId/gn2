@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
+import { SkillChip, skillLabel } from '@/components/SkillChip';
 import type { ThemePreference } from '@/lib/auth-store';
 
 interface Profile {
@@ -35,6 +36,16 @@ interface LevelInfo {
     persen: number;
 }
 
+const KATEGORI_KETERAMPILAN: { value: string; label: string }[] = [
+    { value: 'FOTO_PRODUK', label: 'Foto Produk' },
+    { value: 'DESAIN', label: 'Desain' },
+    { value: 'PEMASARAN_MEDSOS', label: 'Pemasaran Media Sosial' },
+    { value: 'MARKETPLACE', label: 'Marketplace' },
+    { value: 'PEMBUKUAN', label: 'Pembukuan' },
+    { value: 'VIDEO_PENDEK', label: 'Video Pendek' },
+    { value: 'LAINNYA', label: 'Lainnya' },
+];
+
 export function ProfileOverlay() {
     const currentUser = useAuthStore((state) => state.user);
     const updateUser = useAuthStore((state) => state.updateUser);
@@ -43,7 +54,6 @@ export function ProfileOverlay() {
     const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState({ nama: '', bio: '', avatarUrl: '', keahlian: [] as string[], ketersediaan: '', tanggalLahir: '' });
-    const [skillDraft, setSkillDraft] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [notes, setNotes] = useState<ProfileNote[]>([]);
     const [noteText, setNoteText] = useState('');
@@ -71,7 +81,6 @@ export function ProfileOverlay() {
                 tanggalLahir: data.tanggalLahir ? new Date(data.tanggalLahir).toISOString().slice(0, 10) : '',
             });
             setEditing(false);
-            setSkillDraft('');
             setError(null);
             setThemeError(null);
             const notesResponse = await api.get(`/users/${userId}/notes`);
@@ -118,17 +127,6 @@ export function ProfileOverlay() {
         }
     }
 
-    function addSkill(event: React.KeyboardEvent<HTMLInputElement>) {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const skill = skillDraft.trim().replace(/\s+/g, ' ');
-        if (skill.length < 2 || skill.length > 30 || form.keahlian.length >= 10) return;
-        if (!form.keahlian.some((item) => item.toLocaleLowerCase() === skill.toLocaleLowerCase())) {
-            setForm((current) => ({ ...current, keahlian: [...current.keahlian, skill] }));
-        }
-        setSkillDraft('');
-    }
-
     async function uploadAvatar(file: File | undefined) {
         if (!file) return;
         if (file.size > 5 * 1024 * 1024) {
@@ -164,7 +162,7 @@ export function ProfileOverlay() {
                 {profile.keahlian && profile.keahlian.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                         {profile.keahlian.map((skill) => (
-                            <span key={skill} className="rounded-full bg-guyub-krem px-2 py-1 font-body text-[10px] text-guyub-bambuDark">{skill}</span>
+                            <SkillChip key={skill} value={skill} />
                         ))}
                     </div>
                 )}
@@ -221,9 +219,43 @@ export function ProfileOverlay() {
                         <div>
                             <label className="block font-body text-sm font-medium text-stone-700">Keahlian <span className="font-normal text-stone-500">({form.keahlian.length}/10)</span></label>
                             <div className="mt-1 flex flex-wrap gap-2">
-                                {form.keahlian.map((skill) => <span key={skill} className="inline-flex items-center gap-1 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs text-guyub-bambuDark">{skill}<button type="button" aria-label={`Hapus keahlian ${skill}`} onClick={() => setForm((current) => ({ ...current, keahlian: current.keahlian.filter((item) => item !== skill) }))} className="font-semibold text-guyub-merahBata">×</button></span>)}
+                                {form.keahlian.map((skill) => (
+                                    <SkillChip
+                                        key={skill}
+                                        value={skill}
+                                        selected
+                                        onToggle={() =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                keahlian: current.keahlian.filter((item) => item !== skill),
+                                            }))
+                                        }
+                                    />
+                                ))}
+                                {form.keahlian.length < 10 && (
+                                    <select
+                                        value=""
+                                        onChange={(event) => {
+                                            const val = event.target.value;
+                                            if (val && !form.keahlian.includes(val)) {
+                                                setForm((current) => ({
+                                                    ...current,
+                                                    keahlian: [...current.keahlian, val],
+                                                }));
+                                            }
+                                            event.target.value = '';
+                                        }}
+                                        className="rounded-lg border border-stone-300 px-3 py-1.5 font-body text-xs"
+                                    >
+                                        <option value="">+ Tambah keterampilan</option>
+                                        {KATEGORI_KETERAMPILAN.map((o) => (
+                                            <option key={o.value} value={o.value}>
+                                                {o.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
-                            <input value={skillDraft} onChange={(event) => setSkillDraft(event.target.value)} onKeyDown={addSkill} maxLength={30} disabled={form.keahlian.length >= 10} className="mt-2 w-full rounded-lg border border-stone-300 px-3 py-2 font-body disabled:bg-stone-100" placeholder="Ketik keahlian lalu tekan Enter" />
                         </div>
                         <div>
                             <label className="block font-body text-sm font-medium text-stone-700">Ketersediaan</label>

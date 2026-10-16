@@ -5,15 +5,15 @@ import { CreateResponseDto } from './dto/create-response.dto';
 import { UpdateUmkmStatusDto } from './dto/update-status.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UmkmNeedStatus } from '@prisma/client';
+import { UmkmNeedStatus, SkillCategory } from '@prisma/client';
 
 @Controller('umkm')
 export class UmkmController {
   constructor(private umkmService: UmkmService) {}
 
   @Get()
-  findAll(@Query('status') status?: UmkmNeedStatus) {
-    return this.umkmService.findAll(status);
+  findAll(@Query('status') status?: UmkmNeedStatus, @Query('category') category?: SkillCategory) {
+    return this.umkmService.findAll(status, category);
   }
 
   @Get(':id')

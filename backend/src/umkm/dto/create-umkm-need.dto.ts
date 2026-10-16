@@ -1,4 +1,5 @@
-import { IsArray, IsDateString, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsArray, IsDateString, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { SkillCategory } from '@prisma/client';
 
 export class CreateUmkmNeedDto {
   @IsString()
@@ -12,6 +13,9 @@ export class CreateUmkmNeedDto {
   @IsString()
   @MinLength(10)
   deskripsi: string;
+
+  @IsEnum(SkillCategory, { message: 'Kategori keterampilan tidak valid' })
+  category: SkillCategory;
 
   @IsOptional()
   @IsDateString()

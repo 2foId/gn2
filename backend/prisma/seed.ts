@@ -1,4 +1,4 @@
-import { PrismaClient, Role, WasiatKategori } from '@prisma/client';
+import { PrismaClient, Role, SkillCategory, WasiatKategori } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { hitungLevel, totalCurrencyUntukXp } from '../src/users/level';
 import { acakKuis, QuizQuestionWithAnswer } from '../src/wasiat/quiz-randomizer';
@@ -247,6 +247,38 @@ async function main() {
   ]);
 
   console.log('Seed admin dan contoh wasiat selesai.');
+
+  async function ensureUmkmNeed(namaUsaha: string, kebutuhan: string, deskripsi: string, category: SkillCategory, pemilikId: string) {
+    const existing = await prisma.umkmNeed.findFirst({ where: { namaUsaha } });
+    if (existing) {
+      return prisma.umkmNeed.update({ where: { id: existing.id }, data: { kebutuhan, deskripsi, category } });
+    }
+    return prisma.umkmNeed.create({ data: { namaUsaha, kebutuhan, deskripsi, category, pemilikId } });
+  }
+
+  await ensureUmkmNeed(
+    'Bakso Pak Rizal',
+    'Butuh bantuan foto produk untuk menu kuliner yang akan diunggah ke platform pemasaran online.',
+    'Butuh photographer yang dapat menampilkan hidangan bakso dengan menarik untuk katalog digital.',
+    SkillCategory.FOTO_PRODUK,
+    admin.id,
+  );
+  await ensureUmkmNeed(
+    'Kain Tenun Ibu Siti',
+    'Membuka toko online untuk menjual produk tenunan',
+    'Butuh desain logo dan kemasan untuk merek tenunan yang baru dirintis.',
+    SkillCategory.DESAIN,
+    admin.id,
+  );
+  await ensureUmkmNeed(
+    'Toko Serba Ada',
+    'Membantu memasuki marketplace dan mengelola listing produk.',
+    'Butuh pembimbing untuk mendaftarkan produk ke platform marketplace dan mengoptimalkan deskripsi.',
+    SkillCategory.MARKETPLACE,
+    admin.id,
+  );
+
+  console.log('Contoh kebutuhan UMKM dengan kategori berhasil dibuat.');
   console.log(`Kontak (HP): ${adminKontak}`);
   console.log('Password: AdminGuyub123');
 }

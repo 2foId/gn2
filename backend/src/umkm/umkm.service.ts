@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUmkmNeedDto } from './dto/create-umkm-need.dto';
-import { UmkmNeedStatus } from '@prisma/client';
+import { UmkmNeedStatus, SkillCategory } from '@prisma/client';
 
 @Injectable()
 export class UmkmService {
@@ -17,9 +17,12 @@ export class UmkmService {
     });
   }
 
-  findAll(status?: UmkmNeedStatus) {
+  findAll(status?: UmkmNeedStatus, category?: SkillCategory) {
     return this.prisma.umkmNeed.findMany({
-      where: status ? { status } : undefined,
+      where: {
+        ...(status ? { status } : {}),
+        ...(category ? { category } : {}),
+      },
       include: {
         pemilik: { select: { id: true, nama: true, avatarUrl: true } },
         _count: { select: { responses: true } },

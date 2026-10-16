@@ -3,14 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBantuanDto } from './dto/create-bantuan.dto';
 import { UpdateBantuanDto } from './dto/update-bantuan.dto';
 import { BatalKesediaanDto } from './dto/batal-kesediaan.dto';
-import { BantuanStatus, KesediaanStatus, PreferensiRelawan } from '@prisma/client';
+import { BantuanStatus, KesediaanStatus, PreferensiRelawan, SkillCategory } from '@prisma/client';
 import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class BantuanService {
   constructor(private prisma: PrismaService, private usersService: UsersService) { }
 
-  private matchesPreferensiRelawan(user: { role: string; keahlian: string[]; kategoriUsia: string | null }, preferensi: PreferensiRelawan) {
+  private matchesPreferensiRelawan(user: { role: string; keahlian: SkillCategory[]; kategoriUsia: string | null }, preferensi: PreferensiRelawan) {
     if (preferensi === PreferensiRelawan.SEMUA) return true;
     if (user.role !== 'RELAWAN') return false;
 

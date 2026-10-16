@@ -1,5 +1,6 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsOptional, IsString, Length, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, Length, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { SkillCategory } from '@prisma/client';
 
 @ValidatorConstraint({ name: 'validBirthDate', async: false })
 class ValidBirthDateConstraint implements ValidatorConstraintInterface {
@@ -45,12 +46,11 @@ export class UpdateProfileDto {
     @IsOptional()
     @IsArray({ message: 'Keahlian harus berupa daftar' })
     @ArrayMaxSize(10, { message: 'Keahlian maksimal 10 item' })
-    @IsString({ each: true, message: 'Setiap keahlian harus berupa teks' })
-    @Length(2, 30, { each: true, message: 'Setiap keahlian harus berisi 2 sampai 30 karakter' })
+    @IsEnum(SkillCategory, { each: true, message: 'Setiap keahlian harus kategori yang valid' })
     @Transform(({ value }) => Array.isArray(value)
         ? [...new Set(value.map((item) => typeof item === 'string' ? item.trim().replace(/\s+/g, ' ') : item))]
         : value)
-    keahlian?: string[];
+    keahlian?: SkillCategory[];
 
     @IsOptional()
     @IsString()

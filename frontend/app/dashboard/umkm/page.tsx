@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
+import { SkillChip, skillLabel } from '@/components/SkillChip';
 
 interface UmkmItem {
   id: string;
@@ -11,11 +12,22 @@ interface UmkmItem {
   kebutuhan: string;
   deskripsi: string;
   status: string;
+  category: string;
   pemilikId: string;
   pemilik: { id: string; nama: string; avatarUrl?: string | null };
   responses?: { id: string; pesan: string; penolong: { id: string; nama: string; avatarUrl?: string | null } }[];
   _count?: { responses: number };
 }
+
+const KATEGORI_OPSI = [
+  { value: 'FOTO_PRODUK', label: 'Foto Produk' },
+  { value: 'DESAIN', label: 'Desain' },
+  { value: 'PEMASARAN_MEDSOS', label: 'Pemasaran Media Sosial' },
+  { value: 'MARKETPLACE', label: 'Marketplace' },
+  { value: 'PEMBUKUAN', label: 'Pembukuan' },
+  { value: 'VIDEO_PENDEK', label: 'Video Pendek' },
+  { value: 'LAINNYA', label: 'Lainnya' },
+];
 
 export default function UmkmPage() {
   const user = useAuthStore((s) => s.user);
@@ -25,12 +37,13 @@ export default function UmkmPage() {
   const [pesan, setPesan] = useState('');
   const [responError, setResponError] = useState<string | null>(null);
   const [deleteUmkmId, setDeleteUmkmId] = useState<string | null>(null);
-  const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '' });
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
 
   const loadData = useCallback(async () => {
-    const res = await api.get('/umkm');
+    const res = await api.get('/umkm', { params: categoryFilter ? { category: categoryFilter } : undefined });
     setItems(res.data);
-  }, []);
+  }, [categoryFilter]);
 
   useEffect(() => {
     loadData();
@@ -40,7 +53,7 @@ export default function UmkmPage() {
     e.preventDefault();
     await api.post('/umkm', form);
     setShowForm(false);
-    setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '' });
+    setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
     loadData();
   }
 
@@ -133,6 +146,21 @@ export default function UmkmPage() {
               className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body"
             />
           </div>
+          <div>
+            <label className="block font-body text-sm font-medium text-stone-700">Kategori Keterampilan</label>
+            <select
+              required
+              value={form.kategori}
+              onChange={(e) => setForm({ ...form, kategori: e.target.value })}
+              className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body"
+            >
+              {KATEGORI_OPSI.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
             className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95"
@@ -143,7 +171,26 @@ export default function UmkmPage() {
       )}
 
       <div className="mt-6 space-y-4">
-        {items.slice().sort((a, b) => (a.status === 'SELESAI' ? 1 : 0) - (b.status === 'SELESAI' ? 1 : 0)).map((item) => (
+        <div className="flex items-center gap-2">
+          <span className="font-body text-sm font-medium text-stone-600">Filter kategori:</span>
+          <select
+            value={categoryFilter ?? ''}
+            onChange={(e) => setCategoryFilter(e.target.value || null)}
+            className="rounded-lg border border-stone-300 px-3 py-1.5 font-body text-sm"
+          >
+            <option value="">Semua kategori</option>
+            {KATEGORI_OPSI.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        {items
+          .slice()
+          .sort((a, b) => (a.status === 'SELESAI' ? 1 : 0) - (b.status === 'SELESAI' ? 1 : 0))
+          .filter((item) => !categoryFilter || item.category === categoryFilter)
+          .map((item) => (
           <div key={item.id} className={`rounded-xl bg-white p-5 shadow-sm${item.status === 'SELESAI' ? ' guyub-stripes' : ''}`}>
             <div className="flex items-start justify-between">
               <div>
@@ -155,6 +202,7 @@ export default function UmkmPage() {
               <span className={`relative z-10 shrink-0 rounded-full px-3 py-1 font-body text-xs font-medium ${item.status === 'DIBUKA' ? 'bg-guyub-krem text-guyub-bambuDark' : 'bg-guyub-gula text-guyub-bambuDark'}`}>
                 {item.status.replace('_', ' ')}
               </span>
+              <SkillChip value={item.category} />
             </div>
 
             <div className="mt-3 flex items-center gap-3">

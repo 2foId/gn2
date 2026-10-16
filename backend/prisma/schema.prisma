@@ -66,6 +66,16 @@ enum UmkmNeedStatus {
   SELESAI
 }
 
+enum SkillCategory {
+  FOTO_PRODUK
+  DESAIN
+  PEMASARAN_MEDSOS
+  MARKETPLACE
+  PEMBUKUAN
+  VIDEO_PENDEK
+  LAINNYA
+}
+
 // =========================================
 // USER & AUTH
 // =========================================
@@ -85,7 +95,7 @@ model User {
   level         Int      @default(1)
   currency      Int      @default(0)
   themePreference ThemePreference @default(LIGHT)
-  keahlian      String[] @default([])
+  keahlian      SkillCategory[] @default([])
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
   kontakVerified Boolean @default(false)
@@ -308,6 +318,7 @@ model UmkmNeed {
   responses   UmkmResponse[]
   foto        String[]       @default([])
   dibutuhkanSebelum DateTime?
+  category    SkillCategory  @default(LAINNYA)
 
   @@map("umkm_needs")
 }
