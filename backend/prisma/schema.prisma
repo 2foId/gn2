@@ -99,6 +99,8 @@ model User {
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
   portfolios    UmkmPortfolio[]
+  ratingsFrom   UmkmRating[] @relation("RatingFrom")
+  ratingsTo     UmkmRating[] @relation("RatingTo")
   kontakVerified Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -334,6 +336,7 @@ model UmkmResponse {
   pesan      String
   createdAt  DateTime @default(now())
   portfolio  UmkmPortfolio?
+  ratings    UmkmRating[]
 
   @@map("umkm_responses")
 }
@@ -355,6 +358,22 @@ model UmkmPortfolio {
   createdAt   DateTime       @default(now())
 
   @@map("umkm_portfolios")
+}
+
+model UmkmRating {
+  id        String   @id @default(uuid())
+  responseId String
+  response  UmkmResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  fromUserId String
+  fromUser   User @relation("RatingFrom", fields: [fromUserId], references: [id])
+  toUserId   String
+  toUser     User @relation("RatingTo", fields: [toUserId], references: [id])
+  score     Int
+  comment   String? @db.VarChar(300)
+  createdAt DateTime @default(now())
+
+  @@unique([responseId, fromUserId])
+  @@map("umkm_ratings")
 }
 
 // =========================================

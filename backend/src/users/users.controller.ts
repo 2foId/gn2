@@ -62,4 +62,9 @@ export class UsersController {
     findPublic(@Param('id') id: string) {
         return this.usersService.findPublicProfile(id);
     }
+
+    @Get(':id/ratings')
+    findRatings(@Param('id') userId: string) {
+        return this.usersService.findUserRatings(userId);
+    }
 }

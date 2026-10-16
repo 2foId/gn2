@@ -61,6 +61,8 @@ export function ProfileOverlay() {
     const [themeError, setThemeError] = useState<string | null>(null);
     const [portfolios, setPortfolios] = useState<any[]>([]);
     const [portfolioLoading, setPortfolioLoading] = useState(false);
+    const [ratings, setRatings] = useState<{ avgScore: number; jumlahUlasan: number; ulasan: any[] } | null>(null);
+    const [ratingsLoading, setRatingsLoading] = useState(false);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -99,6 +101,17 @@ export function ProfileOverlay() {
                 setPortfolios([]);
             } finally {
                 setPortfolioLoading(false);
+            }
+
+            // Muat rating profil
+            try {
+                setRatingsLoading(true);
+                const ratingsResponse = await api.get(`/users/${userId}/ratings`);
+                setRatings(ratingsResponse.data);
+            } catch {
+                setRatings(null);
+            } finally {
+                setRatingsLoading(false);
             }
         }
         window.addEventListener('guyub:open-profile', openProfile);
@@ -286,6 +299,43 @@ export function ProfileOverlay() {
                                     </div>
                                 ))}
                             </div>
+                        )}
+                    </div>
+                )}
+                {ratings && (
+                    <div className="mt-6">
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <img key={star} src={ratings.avgScore >= star ? '/icons/bintang-isi.svg' : '/icons/bintang.svg'} alt="" className="h-4 w-4" />
+                                ))}
+                            </div>
+                            <span className="font-display font-semibold text-guyub-bambuDark">{ratings.avgScore.toFixed(1)}</span>
+                            <span className="font-body text-xs text-stone-500">({ratings.jumlahUlasan} ulasan)</span>
+                            {ratings.avgScore >= 4.5 && ratings.jumlahUlasan >= 5 && (
+                                <span className="rounded-full border border-guyub-gula bg-guyub-gula/10 px-2.5 py-0.5 font-body text-xs tracking-wide uppercase text-guyub-bambuDark">Terpercaya</span>
+                            )}
+                        </div>
+                        {ratings.ulasan.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {ratings.ulasan.map((u) => (
+                                    <div key={u.id} className="rounded-lg bg-guyub-krem p-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <img key={star} src={u.score >= star ? '/icons/bintang-isi.svg' : '/icons/bintang.svg'} alt="" className="h-4 w-4" />
+                                                ))}
+                                            </div>
+                                            <p className="font-body text-xs text-stone-500">{new Date(u.createdAt).toLocaleDateString('id-ID')}</p>
+                                        </div>
+                                        <p className="mt-1 font-body text-sm text-stone-700 line-clamp-2">{u.comment ?? '-'}</p>
+                                        <p className="mt-1 font-body text-xs text-stone-500">Dari {u.fromUser.nama}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {ratings.jumlahUlasan === 0 && (
+                            <p className="mt-3 font-body text-sm text-stone-500">Belum ada ulasan.</p>
                         )}
                     </div>
                 )}

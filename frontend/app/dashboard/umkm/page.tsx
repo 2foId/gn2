@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
 import { SkillChip, skillLabel } from '@/components/SkillChip';
+import { StarRating } from '@/components/StarRating';
 
 interface UmkmItem {
   id: string;
@@ -41,11 +42,22 @@ export default function UmkmPage() {
   const [deleteUmkmId, setDeleteUmkmId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [showPortfolioForm, setShowPortfolioForm] = useState<string | null>(null);
+  const [ratingStates, setRatingStates] = useState<Record<string, { score: number; comment: string; submitting: boolean; submitted: boolean }>>({});
   const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
 
   const loadData = useCallback(async () => {
     const res = await api.get('/umkm', { params: categoryFilter ? { category: categoryFilter } : undefined });
-    setItems(res.data);
+    const newItems = res.data;
+    const nextRatingStates: Record<string, { score: number; comment: string; submitting: boolean; submitted: boolean }> = {};
+    newItems.forEach((item: any) => {
+      (item.responses ?? []).forEach((r: any) => {
+        if (!nextRatingStates[r.id]) {
+          nextRatingStates[r.id] = { score: 0, comment: '', submitting: false, submitted: false };
+        }
+      });
+    });
+    setItems(newItems);
+    setRatingStates((current) => ({ ...current, ...nextRatingStates }));
   }, [categoryFilter]);
 
   useEffect(() => {
@@ -58,6 +70,25 @@ export default function UmkmPage() {
     setShowForm(false);
     setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
     loadData();
+  }
+
+  async function handleRating(responseId: string, e: React.FormEvent) {
+    e.preventDefault();
+    const state = ratingStates[responseId];
+    if (!state || state.submitting || state.submitted) return;
+    setRatingStates((current) => ({ ...current, [responseId]: { ...current[responseId], submitting: true } }));
+    try {
+      await api.post(`/umkm/responses/${responseId}/rating`, {
+        score: state.score,
+        comment: state.comment.trim() || undefined,
+      });
+      setRatingStates((current) => ({ ...current, [responseId]: { ...current[responseId], submitted: true, submitting: false } }));
+      loadData();
+    } catch (err: any) {
+      const message = err.response?.data?.message;
+      setResponError(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal mengirim penilaian.');
+      setRatingStates((current) => ({ ...current, [responseId]: { ...current[responseId], submitting: false } }));
+    }
   }
 
   async function toggleExpand(item: UmkmItem) {
@@ -259,6 +290,36 @@ export default function UmkmPage() {
                       )}
                     </div>
                     <p className="font-body text-sm text-stone-600">{r.pesan}</p>
+                    {item.status === 'SELESAI' && (
+                      <form onSubmit={(e) => handleRating(r.id, e)} className="mt-3 space-y-2">
+                        <div className="flex items-start gap-3">
+                          <StarRating
+                            value={ratingStates[r.id]?.score ?? 0}
+                            onSelect={(score) => setRatingStates((current) => ({ ...current, [r.id]: { ...current[r.id], score } }))}
+                            size="sm"
+                            disabled={!!ratingStates[r.id]?.submitted}
+                          />
+                          <div className="flex-1">
+                            <textarea
+                              value={ratingStates[r.id]?.comment ?? ''}
+                              onChange={(e) => setRatingStates((current) => ({ ...current, [r.id]: { ...current[r.id], comment: e.target.value } }))}
+                              maxLength={300}
+                              rows={2}
+                              placeholder="Catatan opsional (maks 300 karakter)"
+                              className="w-full rounded-lg border border-stone-300 px-3 py-2 font-body text-sm disabled:opacity-60"
+                              disabled={!!ratingStates[r.id]?.submitted}
+                            ></textarea>
+                            <button
+                              type="submit"
+                              disabled={!(ratingStates[r.id]?.score ?? 0) || !!ratingStates[r.id]?.submitted || ratingStates[r.id]?.submitting}
+                              className="rounded-full bg-guyub-gula px-4 py-1.5 font-body text-xs font-medium text-guyub-bambuDark hover:brightness-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {ratingStates[r.id]?.submitted ? 'Penilaian terkirim' : ratingStates[r.id]?.submitting ? 'Mengirim…' : 'Kirim penilaian'}
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    )}
                   </div>
                 ))}
                 <div className="flex gap-2">

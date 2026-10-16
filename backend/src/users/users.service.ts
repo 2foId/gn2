@@ -135,6 +135,41 @@ export class UsersService {
     return this.prisma.profileNote.create({ data: { authorId, targetUserId, isi } });
   }
 
+  async findUserRatings(userId: string) {
+    const ratings = await this.prisma.umkmRating.findMany({
+      where: { toUserId: userId },
+      include: {
+        fromUser: { select: { id: true, nama: true, avatarUrl: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const now = new Date();
+    const visible = await Promise.all(ratings.map(async (r) => {
+      const count = await this.prisma.umkmRating.count({ where: { responseId: r.responseId } });
+      const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+      return count >= 2 || r.createdAt <= fourteenDaysAgo;
+    }));
+
+    const visibleRatings = ratings.filter((_, i) => visible[i]);
+    const jumlahUlasan = visibleRatings.length;
+    const avgScore = jumlahUlasan > 0
+      ? visibleRatings.reduce((sum, r) => sum + r.score, 0) / jumlahUlasan
+      : 0;
+
+    return {
+      avgScore: Math.round(avgScore * 10) / 10,
+      jumlahUlasan,
+      ulasan: visibleRatings.slice(0, 5).map((r) => ({
+        id: r.id,
+        score: r.score,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        fromUser: r.fromUser,
+      })),
+    };
+  }
+
   async deleteNote(authorId: string, targetUserId: string, noteId: string) {
     const note = await this.prisma.profileNote.findFirst({ where: { id: noteId, authorId, targetUserId } });
     if (!note) throw new NotFoundException('Catatan tidak ditemukan');

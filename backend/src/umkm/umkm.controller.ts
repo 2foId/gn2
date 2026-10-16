@@ -3,6 +3,7 @@ import { UmkmService } from './umkm.service';
 import { CreateUmkmNeedDto } from './dto/create-umkm-need.dto';
 import { CreateResponseDto } from './dto/create-response.dto';
 import { UpdateUmkmStatusDto } from './dto/update-status.dto';
+import { CreateUmkmRatingDto } from './dto/create-rating.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UmkmNeedStatus, SkillCategory } from '@prisma/client';
@@ -55,5 +56,15 @@ export class UmkmController {
     @CurrentUser('role') role: string,
   ) {
     return this.umkmService.hapus(id, userId, role);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('responses/:id/rating')
+  addRating(
+    @Param('id') responseId: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: CreateUmkmRatingDto,
+  ) {
+    return this.umkmService.addRating(responseId, userId, dto);
   }
 }

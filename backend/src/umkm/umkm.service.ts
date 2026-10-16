@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUmkmNeedDto } from './dto/create-umkm-need.dto';
 import { UmkmNeedStatus, SkillCategory, Role } from '@prisma/client';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto/create-portfolio.dto';
+import { CreateUmkmRatingDto } from './dto/create-rating.dto';
 
 @Injectable()
 export class UmkmService {
@@ -152,6 +153,39 @@ export class UmkmService {
       },
       orderBy: { createdAt: 'desc' },
       take,
+    });
+  }
+
+  async addRating(responseId: string, userId: string, dto: CreateUmkmRatingDto) {
+    const response = await this.prisma.umkmResponse.findUnique({
+      where: { id: responseId },
+      include: { need: true, penolong: true },
+    });
+    if (!response) throw new NotFoundException('Respons tidak ditemukan.');
+    if (response.need.status !== 'SELESAI') {
+      throw new BadRequestException('Penilaian hanya bisa diberikan setelah pekerjaan selesai.');
+    }
+    if (response.penolongId !== userId && response.need.pemilikId !== userId) {
+      throw new ForbiddenException('Hanya pihak yang terlibat dalam respons ini yang bisa menilai.');
+    }
+    const toUserId = response.penolongId === userId ? response.need.pemilikId : response.penolongId;
+    const existing = await this.prisma.umkmRating.findUnique({
+      where: { responseId_fromUserId: { responseId, fromUserId: userId } },
+    });
+    if (existing) {
+      throw new BadRequestException('Penilaian sudah pernah dikirim.');
+    }
+    return this.prisma.umkmRating.create({
+      data: {
+        responseId,
+        fromUserId: userId,
+        toUserId,
+        score: dto.score,
+        comment: dto.comment ?? null,
+      },
+      include: {
+        fromUser: { select: { id: true, nama: true, avatarUrl: true } },
+      },
     });
   }
 }
