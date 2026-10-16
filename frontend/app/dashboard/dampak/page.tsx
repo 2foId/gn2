@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
@@ -48,24 +48,60 @@ export default function DampakPage() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState(false);
 
-    useEffect(() => {
-        let cancelled = false;
-        async function load() {
-            if (!user || (user.role !== 'ADMIN' && user.role !== 'RELAWAN')) {
-                setLoading(false);
-                return;
-            }
-            try {
-                const response = await api.get('/dampak/ringkasan');
-                if (!cancelled) setData(response.data);
-            } catch {
-                if (!cancelled) setLoadError(true);
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
+    const abortRef = useRef<AbortController | null>(null);
+    const inFlightRef = useRef<Promise<void> | null>(null);
+
+    async function load() {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'RELAWAN')) {
+            setLoading(false);
+            return;
         }
+
+        // Cegah fetch ganda: bagikan satu promise untuk request yang sedang berjalan
+        if (inFlightRef.current) {
+            await inFlightRef.current;
+            return;
+        }
+
+        // Batalkan request lama sebelum memulai yang baru
+        if (abortRef.current) abortRef.current.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
+        const run = (async () => {
+            try {
+                setLoading(true);
+                const response = await api.get('/dampak/ringkasan', { signal: controller.signal });
+                if (!controller.signal.aborted) {
+                    setData(response.data);
+                    setLoadError(false);
+                }
+            } catch (error: any) {
+                // Abaikan error dari request yang sudah dibatalkan
+                if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+                    return;
+                }
+                if (!controller.signal.aborted) {
+                    setLoadError(true);
+                }
+            } finally {
+                if (!controller.signal.aborted) {
+                    setLoading(false);
+                }
+                abortRef.current = null;
+                inFlightRef.current = null;
+            }
+        })();
+
+        inFlightRef.current = run;
+        await run;
+    }
+
+    useEffect(() => {
         void load();
-        return () => { cancelled = true; };
+        return () => {
+            if (abortRef.current) abortRef.current.abort();
+        };
     }, [user]);
 
     useEffect(() => {
@@ -156,8 +192,8 @@ export default function DampakPage() {
 
             <section className="grid grid-cols-1 gap-5 lg:grid-cols-2" aria-label="Blok dampak komunitas">
                 {blocks.map((block) => (
-                    <article key={block.key} className="flex min-h-64 overflow-hidden rounded-2xl border-2 border-yellow-400 bg-white shadow-md">
-                        <div className={`w-2 shrink-0 ${block.strip}`} aria-hidden="true" />
+                    <article key={block.key} className="relative flex min-h-64 overflow-hidden rounded-2xl border-2 border-yellow-400 bg-white shadow-md">
+                        <div className={`absolute inset-x-0 top-0 h-1 rounded-t-2xl ${block.strip}`} aria-hidden="true" />
                         <div className="flex w-full flex-col gap-5 p-5 md:flex-row md:items-center md:gap-6 md:p-7">
                             <div className="flex shrink-0 items-center gap-4 md:block">
                                 <img src={block.icon} alt="" className="h-8 w-8 md:mb-3 dark:brightness-0 dark:invert" />
@@ -174,8 +210,8 @@ export default function DampakPage() {
                     </article>
                 ))}
 
-                <article className="flex min-h-64 overflow-hidden rounded-2xl border-2 border-yellow-400 bg-white shadow-md lg:col-span-2">
-                    <div className="w-2 shrink-0 bg-guyub-bambuDark" aria-hidden="true" />
+                <article className="relative flex min-h-64 overflow-hidden rounded-2xl border-2 border-yellow-400 bg-white shadow-md lg:col-span-2">
+                    <div className="absolute inset-x-0 top-0 h-1 rounded-t-2xl bg-guyub-bambuDark" aria-hidden="true" />
                     <div className="flex w-full flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:gap-8 md:p-7">
                         <div className="flex items-center gap-4 md:block">
                             <img src="/icons/sdm.svg" alt="" className="h-8 w-8 md:mb-3 dark:brightness-0 dark:invert" />
