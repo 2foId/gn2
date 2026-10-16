@@ -24,8 +24,8 @@ export class UsersService {
     return age > 30 && age <= 100 ? 'DEWASA' : null;
   }
 
-  findByKontak(kontak: string) {
-    return this.prisma.user.findUnique({ where: { kontak } });
+  findByEmail(email: string) {
+    return this.prisma.user.findUnique({ where: { email } });
   }
 
   findById(id: string) {
@@ -178,7 +178,7 @@ export class UsersService {
 
   create(data: {
     nama: string;
-    kontak: string;
+    email: string;
     passwordHash: string;
     dusun?: string;
     rt?: string;
@@ -187,10 +187,10 @@ export class UsersService {
     return this.prisma.user.create({ data });
   }
 
-  markKontakVerified(id: string) {
+  verifyEmail(id: string) {
     return this.prisma.user.update({
       where: { id },
-      data: { kontakVerified: true },
+      data: { emailVerifiedAt: new Date() },
     });
   }
 
@@ -204,10 +204,10 @@ export class UsersService {
       select: {
         id: true,
         nama: true,
-        kontak: true,
+        email: true,
         dusun: true,
         role: true,
-        kontakVerified: true,
+        emailVerifiedAt: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },

@@ -11,15 +11,15 @@ interface FaqItem {
 const FAQ_LIST: FaqItem[] = [
     {
         kategori: 'Akun & Login',
-        pertanyaan: 'Kenapa kode OTP tidak masuk ke WhatsApp saya?',
+        pertanyaan: 'Kenapa email verifikasi tidak masuk?',
         jawaban:
-            'Coba tunggu sampai 1 menit, kadang ada jeda pengiriman. Kalau masih belum masuk, pastikan nomor HP yang kamu daftarkan sudah benar (format 08xx atau 62xx). Kamu juga bisa klik "Kirim Ulang OTP" di halaman verifikasi.',
+            'Coba tunggu sampai 1 menit, kadang ada jeda pengiriman. Cek juga folder spam atau sampah sampah email kamu. Kalau masih belum masuk, pastikan email yang kamu daftarkan sudah benar. Kamu bisa daftar ulang untuk menerima email verifikasi baru.',
     },
     {
         kategori: 'Akun & Login',
         pertanyaan: 'Saya lupa password, bagaimana cara reset?',
         jawaban:
-            'Saat ini fitur reset password mandiri belum tersedia. Hubungi Admin/Relawan RT setempat untuk dibantu reset akun secara manual.',
+            'Klik "Lupa password" di halaman masuk, masukkan email kamu, lalu ikuti tautan yang dikirim ke email untuk membuat password baru.',
     },
     {
         kategori: 'Akun & Login',

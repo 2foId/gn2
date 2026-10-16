@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Body,
   Req,
@@ -7,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { Throttle } from '@nestjs/throttler';
@@ -14,7 +16,8 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtRefreshGuard } from './guards/jwt-refresh.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -31,11 +34,11 @@ export class AuthController {
 
   private setRefreshCookie(res: Response, token: string) {
     res.cookie(REFRESH_COOKIE_NAME, token, {
-      httpOnly: true, // tidak bisa diakses JavaScript di frontend
+      httpOnly: true,
       secure: this.config.get('COOKIE_SECURE') === 'true',
       sameSite: 'lax',
       path: REFRESH_COOKIE_PATH,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari, samakan dengan JWT_REFRESH_EXPIRES_IN
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
   }
 
@@ -43,31 +46,34 @@ export class AuthController {
     res.clearCookie(REFRESH_COOKIE_NAME, { path: REFRESH_COOKIE_PATH });
   }
 
-  // Batasi percobaan register: maksimal 5x per 5 menit per IP
   @Throttle({ default: { limit: 5, ttl: 300000 } })
   @Post('register')
   async register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
-  @Throttle({ default: { limit: 5, ttl: 300000 } })
-  @Post('verify-otp')
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto);
+  @Get('verify-email')
+  async verifyEmail(@Query('token') token: string) {
+    return this.authService.verifyEmail(token);
   }
 
-  @Throttle({ default: { limit: 3, ttl: 300000 } })
-  @Post('resend-otp')
-  async resendOtp(@Body('kontak') kontak: string) {
-    return this.authService.resendOtp(kontak);
-  }
-
-  @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @Post('login')
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response, @Req() req: any) {
     const result = await this.authService.login(dto, req.ip);
     this.setRefreshCookie(res, result.refreshToken);
     return { user: result.user, accessToken: result.accessToken };
+  }
+
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 
   @UseGuards(JwtRefreshGuard)
@@ -94,7 +100,6 @@ export class AuthController {
     return result;
   }
 
-  // Dipakai frontend untuk cek sesi & ambil data user saat aplikasi pertama kali dibuka
   @UseGuards(JwtAuthGuard)
   @Post('me')
   async me(@CurrentUser() user: any) {

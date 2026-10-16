@@ -10,14 +10,16 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { WHATSAPP_PROVIDER, WhatsappProvider } from '../whatsapp/whatsapp-provider.interface';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { generateToken, hashToken } from './token.util';
 
 const SALT_ROUNDS = 12;
-const LOGIN_RATE_LIMIT = 10;
-const LOGIN_RATE_TTL = 5 * 60 * 1000;
+const LOGIN_RATE_LIMIT = 5;
+const LOGIN_RATE_TTL = 15 * 60 * 1000;
 type LoginAttempt = { count: number; firstAttempt: number };
 const loginAttempts = new Map<string, LoginAttempt>();
 
@@ -34,7 +36,7 @@ function checkLoginRateLimit(ip: string): void {
     return;
   }
   if (attempt.count >= LOGIN_RATE_LIMIT) {
-    throw new BadRequestException('Terlalu banyak percobaan login. Coba lagi dalam 5 menit.');
+    throw new BadRequestException('Terlalu banyak percobaan login. Coba lagi dalam 15 menit.');
   }
 }
 
@@ -59,90 +61,87 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private config: ConfigService,
-    @Inject(WHATSAPP_PROVIDER) private whatsappProvider: WhatsappProvider,
+    private mailService: MailService,
   ) { }
 
   // ---------- REGISTRASI ----------
   async register(dto: RegisterDto) {
-    const existing = await this.usersService.findByKontak(dto.kontak);
+    const existing = await this.usersService.findByEmail(dto.email);
     if (existing) {
-      throw new ConflictException('Nomor HP sudah terdaftar');
+      throw new ConflictException('Email sudah terdaftar');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
     const user = await this.usersService.create({
       nama: dto.nama,
-      kontak: dto.kontak,
+      email: dto.email,
       passwordHash,
       dusun: dto.dusun,
       rt: dto.rt,
       rw: dto.rw,
     });
 
-    await this.generateAndSendOtp(user.id, user.kontak);
+    // Buat token verifikasi email (24 jam)
+    const { raw, hash } = generateToken();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await this.prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hash,
+        purpose: 'VERIFY_EMAIL',
+        expiresAt,
+      },
+    });
+
+    await this.mailService.sendVerification(dto.email, raw);
 
     return {
-      message: 'Registrasi berhasil. Kode OTP telah dikirim untuk verifikasi nomor HP.',
+      message: 'Registrasi berhasil. Cek email kamu untuk verifikasi.',
       userId: user.id,
     };
   }
 
-  // ---------- OTP ----------
-  // Provider aktual (Meta Cloud API / Fonnte / stub) ditentukan lewat WhatsappModule,
-  // berdasarkan env WHATSAPP_PROVIDER. Kode ini sudah tidak perlu tahu detail provider.
-  private async generateAndSendOtp(userId: string, kontak: string) {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresInMinutes = Number(this.config.get('OTP_EXPIRES_IN_MINUTES') ?? 5);
-
-    await this.prisma.otpCode.create({
-      data: {
-        userId,
-        code,
-        expiresAt: new Date(Date.now() + expiresInMinutes * 60 * 1000),
-      },
+  // ---------- VERIFIKASI EMAIL ----------
+  async verifyEmail(token: string) {
+    const tokenHash = hashToken(token);
+    const emailToken = await this.prisma.emailToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
     });
 
-    await this.whatsappProvider.sendOtp(kontak, code);
-  }
-
-  async verifyOtp(dto: VerifyOtpDto) {
-    const user = await this.usersService.findByKontak(dto.kontak);
-    if (!user) throw new BadRequestException('Nomor HP tidak ditemukan');
-
-    const otp = await this.prisma.otpCode.findFirst({
-      where: { userId: user.id, code: dto.code, used: false },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!otp || otp.expiresAt < new Date()) {
-      throw new BadRequestException('Kode OTP salah atau sudah kedaluwarsa');
+    if (!emailToken) {
+      throw new BadRequestException('Token verifikasi tidak valid.');
+    }
+    if (emailToken.purpose !== 'VERIFY_EMAIL') {
+      throw new BadRequestException('Token verifikasi tidak valid.');
+    }
+    if (emailToken.usedAt) {
+      throw new BadRequestException('Token verifikasi sudah digunakan.');
+    }
+    if (emailToken.expiresAt < new Date()) {
+      throw new BadRequestException('Token verifikasi sudah kedaluwarsa.');
     }
 
-    await this.prisma.otpCode.update({ where: { id: otp.id }, data: { used: true } });
-    await this.usersService.markKontakVerified(user.id);
+    await this.prisma.emailToken.update({
+      where: { id: emailToken.id },
+      data: { usedAt: new Date() },
+    });
 
-    return { message: 'Nomor HP berhasil diverifikasi. Silakan login.' };
-  }
+    await this.usersService.verifyEmail(emailToken.userId);
 
-  async resendOtp(kontak: string) {
-    const user = await this.usersService.findByKontak(kontak);
-    if (!user) throw new BadRequestException('Nomor HP tidak ditemukan');
-    if (user.kontakVerified) throw new BadRequestException('Nomor HP sudah terverifikasi');
-
-    await this.generateAndSendOtp(user.id, user.kontak);
-    return { message: 'Kode OTP baru telah dikirim' };
+    return { message: 'Email berhasil diverifikasi. Silakan login.' };
   }
 
   // ---------- LOGIN ----------
-  async validateUser(kontak: string, password: string) {
-    const user = await this.usersService.findByKontak(kontak);
-    if (!user) throw new UnauthorizedException('Nomor HP atau password salah');
+  async validateUser(email: string, password: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) throw new UnauthorizedException('Email atau password salah');
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) throw new UnauthorizedException('Nomor HP atau password salah');
+    if (!isMatch) throw new UnauthorizedException('Email atau password salah');
 
-    if (!user.kontakVerified) {
-      throw new UnauthorizedException('Nomor HP belum diverifikasi. Cek kode OTP Anda.');
+    if (!user.emailVerifiedAt) {
+      throw new UnauthorizedException('Silakan verifikasi email terlebih dahulu.');
     }
 
     return user;
@@ -153,19 +152,20 @@ export class AuthService {
       checkLoginRateLimit(ip);
     }
     try {
-      const user = await this.validateUser(dto.kontak, dto.password);
+      const user = await this.validateUser(dto.email, dto.password);
       if (ip) clearLoginAttempts(ip);
-      const tokens = await this.issueTokens(user.id, user.kontak, user.role);
+      const tokens = await this.issueTokens(user.id, user.email, user.role);
       return {
         user: {
           id: user.id,
           nama: user.nama,
-          kontak: user.kontak,
+          email: user.email,
           role: user.role,
           dusun: user.dusun,
           avatarUrl: user.avatarUrl,
           bio: user.bio,
           themePreference: user.themePreference,
+          kontak: user.kontak,
         },
         ...tokens,
       };
@@ -175,9 +175,68 @@ export class AuthService {
     }
   }
 
+  // ---------- FORGOT PASSWORD ----------
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user) {
+      // Respons generik: tidak membangkitkan apakah email terdaftar atau tidak
+      return { message: 'Jika email terdaftar, tautan reset password telah dikirim.' };
+    }
+
+    const { raw, hash } = generateToken();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 jam
+    await this.prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hash,
+        purpose: 'RESET_PASSWORD',
+        expiresAt,
+      },
+    });
+
+    await this.mailService.sendResetPassword(user.email, raw);
+
+    return { message: 'Jika email terdaftar, tautan reset password telah dikirim.' };
+  }
+
+  // ---------- RESET PASSWORD ----------
+  async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = hashToken(dto.token);
+    const emailToken = await this.prisma.emailToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!emailToken) {
+      throw new BadRequestException('Token reset password tidak valid.');
+    }
+    if (emailToken.purpose !== 'RESET_PASSWORD') {
+      throw new BadRequestException('Token reset password tidak valid.');
+    }
+    if (emailToken.usedAt) {
+      throw new BadRequestException('Token reset password sudah digunakan.');
+    }
+    if (emailToken.expiresAt < new Date()) {
+      throw new BadRequestException('Token reset password sudah kedaluwarsa.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: emailToken.userId },
+      data: { passwordHash },
+    });
+
+    await this.prisma.emailToken.update({
+      where: { id: emailToken.id },
+      data: { usedAt: new Date() },
+    });
+
+    return { message: 'Password berhasil diubah. Silakan login.' };
+  }
+
   // ---------- TOKEN ----------
-  private async issueTokens(userId: string, kontak: string, role: string) {
-    const payload = { sub: userId, kontak, role };
+  private async issueTokens(userId: string, email: string, role: string) {
+    const payload = { sub: userId, email, role };
 
     const accessToken = await this.jwtService.signAsync(payload, {
       secret: this.config.get('JWT_ACCESS_SECRET'),
@@ -189,8 +248,6 @@ export class AuthService {
       expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN') ?? '7d',
     });
 
-    // Simpan hash refresh token, bukan token asli — memudahkan revoke saat logout
-    // dan supaya kebocoran database tidak langsung membocorkan token aktif.
     const tokenHash = await bcrypt.hash(refreshToken, SALT_ROUNDS);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
@@ -202,12 +259,10 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  // Dipanggil dari endpoint /auth/refresh (dilindungi JwtRefreshGuard)
   async refresh(userId: string, oldRefreshToken: string) {
     const user = await this.usersService.findById(userId);
     if (!user) throw new UnauthorizedException();
 
-    // Cari refresh token aktif milik user yang cocok dengan hash-nya
     const storedTokens = await this.prisma.refreshToken.findMany({
       where: { userId, revoked: false, expiresAt: { gt: new Date() } },
     });
@@ -224,15 +279,14 @@ export class AuthService {
       throw new UnauthorizedException('Sesi tidak valid, silakan login ulang');
     }
 
-    // Rotasi: cabut token lama, terbitkan pasangan token baru
     await this.prisma.refreshToken.update({
       where: { id: matched.id },
       data: { revoked: true },
     });
 
-    const tokens = await this.issueTokens(user.id, user.kontak, user.role);
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
     return {
-      user: { id: user.id, nama: user.nama, kontak: user.kontak, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, themePreference: user.themePreference },
+      user: { id: user.id, nama: user.nama, email: user.email, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, themePreference: user.themePreference, kontak: user.kontak },
       ...tokens,
     };
   }
@@ -240,7 +294,6 @@ export class AuthService {
   // ---------- LOGOUT ----------
   async logout(userId: string, refreshToken?: string) {
     if (!refreshToken) {
-      // Tidak ada token dikirim, cukup anggap sudah logout
       return { message: 'Logout berhasil' };
     }
 

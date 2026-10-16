@@ -10,7 +10,6 @@ import { WasiatModule } from './wasiat/wasiat.module';
 import { UmkmModule } from './umkm/umkm.module';
 import { AcaraModule } from './acara/acara.module';
 import { MessagesModule } from './messages/messages.module';
-import { WhatsappModule } from './whatsapp/whatsapp.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { DampakModule } from './dampak/dampak.module';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -34,7 +33,6 @@ import { ScheduleModule } from '@nestjs/schedule';
     UmkmModule,
     AcaraModule,
     MessagesModule,
-    WhatsappModule,
     UploadsModule,
     DampakModule,
     ScheduleModule.forRoot(),

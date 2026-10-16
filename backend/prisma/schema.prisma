@@ -85,11 +85,13 @@ model User {
   nama          String
   avatarUrl     String?
   bio           String?
-  kontak        String   @unique // no HP, dipakai juga untuk OTP
+  email         String   @unique
+  passwordHash  String
+  emailVerifiedAt DateTime?
+  kontak        String?  // nomor HP opsional, tidak dipakai login
   dusun         String?
   rt            String?
   rw            String?
-  passwordHash  String
   role          Role     @default(WARGA)
   xpTotal       Int      @default(0)
   level         Int      @default(1)
@@ -101,12 +103,11 @@ model User {
   portfolios    UmkmPortfolio[]
   ratingsFrom   UmkmRating[] @relation("RatingFrom")
   ratingsTo     UmkmRating[] @relation("RatingTo")
-  kontakVerified Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   refreshTokens     RefreshToken[]
-  otpCodes          OtpCode[]
+  emailTokens       EmailToken[]
   bantuanRequests   BantuanRequest[]        @relation("BantuanPembuat")
   bantuanVerifikasi BantuanRequest[]        @relation("BantuanVerifikator")
   kesediaanBantu    KesediaanBantu[]
@@ -153,16 +154,17 @@ model ProfileNote {
   @@map("profile_notes")
 }
 
-model OtpCode {
+model EmailToken {
   id        String   @id @default(uuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  code      String
+  tokenHash String   @unique
+  purpose   String   // VERIFY_EMAIL | RESET_PASSWORD
   expiresAt DateTime
-  used      Boolean  @default(false)
+  usedAt    DateTime?
   createdAt DateTime @default(now())
 
-  @@map("otp_codes")
+  @@map("email_tokens")
 }
 
 // =========================================

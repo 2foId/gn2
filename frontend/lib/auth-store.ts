@@ -16,7 +16,7 @@ function applyTheme(theme: ThemePreference) {
 export interface AuthUser {
   id: string;
   nama: string;
-  kontak: string;
+  email: string;
   role: Role;
   dusun?: string | null;
   avatarUrl?: string | null;
@@ -26,6 +26,7 @@ export interface AuthUser {
   tanggalLahir?: string | null;
   kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
   themePreference?: ThemePreference;
+  kontak?: string | null;
 }
 
 interface AuthState {

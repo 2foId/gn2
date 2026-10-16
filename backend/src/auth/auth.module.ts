@@ -4,12 +4,12 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { UsersModule } from '../users/users.module';
-import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { MailModule } from '../mail/mail.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 
 @Module({
-  imports: [UsersModule, WhatsappModule, PassportModule, JwtModule.register({})],
+  imports: [UsersModule, MailModule, PassportModule, JwtModule.register({})],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
   exports: [AuthService],

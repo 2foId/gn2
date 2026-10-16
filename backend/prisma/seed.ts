@@ -6,16 +6,16 @@ import { acakKuis, QuizQuestionWithAnswer } from '../src/wasiat/quiz-randomizer'
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminKontak = '081234567890';
-  const existing = await prisma.user.findUnique({ where: { kontak: adminKontak } });
+  const adminEmail = 'admin@guyubngapak.id';
+  const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
 
   const admin = existing ?? await prisma.user.create({
     data: {
       nama: 'Admin Guyub Ngapak',
-      kontak: adminKontak,
+      email: adminEmail,
       passwordHash: await bcrypt.hash('AdminGuyub123', 12),
       role: Role.ADMIN,
-      kontakVerified: true,
+      emailVerifiedAt: new Date(),
       dusun: 'Purbalingga',
     },
   });
@@ -279,7 +279,7 @@ async function main() {
   );
 
   console.log('Contoh kebutuhan UMKM dengan kategori berhasil dibuat.');
-  console.log(`Kontak (HP): ${adminKontak}`);
+  console.log(`Email: ${adminEmail}`);
   console.log('Password: AdminGuyub123');
 }
 

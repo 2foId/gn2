@@ -9,7 +9,7 @@ import { useAuthStore } from '@/lib/auth-store';
 export default function LoginPage() {
   const router = useRouter();
   const setSession = useAuthStore((s) => s.setSession);
-  const [kontak, setKontak] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await api.post('/auth/login', { kontak, password });
+      const res = await api.post('/auth/login', { email, password });
       setSession(res.data.user, res.data.accessToken);
       router.push('/dashboard/peta');
     } catch (err: any) {
@@ -42,13 +42,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
-            <label className="block font-body text-sm font-medium text-stone-700">Nomor HP</label>
+            <label className="block font-body text-sm font-medium text-stone-700">Email</label>
             <input
-              type="text"
+              type="email"
               required
-              value={kontak}
-              onChange={(e) => setKontak(e.target.value)}
-              placeholder="0812xxxxxxx"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="nama@contoh.com"
               className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body focus:border-guyub-bambu focus:outline-none focus:ring-1 focus:ring-guyub-bambu"
             />
           </div>
@@ -74,10 +74,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-center font-body text-sm text-stone-600">
+        <p className="mt-4 text-center font-body text-sm text-stone-600">
           Belum punya akun?{' '}
           <Link href="/register" className="font-medium text-guyub-bambuDark underline">
             Daftar di sini
+          </Link>
+        </p>
+        <p className="mt-2 text-center font-body text-sm text-stone-600">
+          <Link href="/forgot-password" className="font-medium text-guyub-bambuDark underline">
+            Lupa password
           </Link>
         </p>
       </div>

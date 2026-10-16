@@ -111,7 +111,7 @@ export class BantuanService {
 
     return this.prisma.bantuanRequest.findMany({
       where,
-      include: { pembuat: { select: { id: true, nama: true, kontak: true, role: true, keahlian: true, tanggalLahir: true } } },
+      include: { pembuat: { select: { id: true, nama: true, email: true, role: true, keahlian: true, tanggalLahir: true } } },
       orderBy: { createdAt: 'desc' },
     }).then((items) => items.map((item) => {
       const { tanggalLahir, ...safeMaker } = item.pembuat;

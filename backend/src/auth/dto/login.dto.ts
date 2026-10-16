@@ -1,8 +1,8 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
-  @IsString()
-  kontak: string;
+  @IsEmail({}, { message: 'Format email tidak valid' })
+  email: string;
 
   @IsString()
   @MinLength(8)
