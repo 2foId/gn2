@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUmkmNeedDto } from './dto/create-umkm-need.dto';
-import { UmkmNeedStatus, SkillCategory } from '@prisma/client';
+import { UmkmNeedStatus, SkillCategory, Role } from '@prisma/client';
+import { CreatePortfolioDto, UpdatePortfolioDto } from './dto/create-portfolio.dto';
 
 @Injectable()
 export class UmkmService {
@@ -78,5 +79,79 @@ export class UmkmService {
       throw new ForbiddenException('Hanya pemilik usaha, relawan, atau admin yang bisa menghapus kebutuhan ini');
     }
     return this.prisma.umkmNeed.delete({ where: { id } });
+  }
+
+  // Hanya relawan pemilik response, hanya jika status kebutuhan SELESAI, satu portofolio per response.
+  async addPortfolio(responseId: string, userId: string, role: string, dto: CreatePortfolioDto & { beforeImageUrl: string; afterImageUrl: string }) {
+    if (role !== Role.RELAWAN) {
+      throw new ForbiddenException('Hanya relawan yang bisa menambahkan portofolio.');
+    }
+    const response = await this.prisma.umkmResponse.findUnique({
+      where: { id: responseId },
+      include: { need: true, penolong: true },
+    });
+    if (!response) throw new NotFoundException('Respons tidak ditemukan.');
+    if (response.penolongId !== userId) {
+      throw new ForbiddenException('Hanya pemilik respons yang bisa menambahkan portofolio.');
+    }
+    if (response.need.status !== 'SELESAI') {
+      throw new BadRequestException('Portofolio hanya bisa dibuat untuk kebutuhan yang sudah selesai.');
+    }
+    const existing = await this.prisma.umkmPortfolio.findUnique({ where: { responseId } });
+    if (existing) {
+      throw new BadRequestException('Respons ini sudah memiliki portofolio.');
+    }
+    return this.prisma.umkmPortfolio.create({
+      data: {
+        responseId,
+        volunteerId: userId,
+        umkmNeedId: response.needId,
+        category: dto.category,
+        title: dto.title,
+        description: dto.description,
+        beforeImageUrl: dto.beforeImageUrl,
+        afterImageUrl: dto.afterImageUrl,
+        isPublished: true,
+      },
+      include: {
+        umkmNeed: { select: { id: true, namaUsaha: true, category: true } },
+      },
+    });
+  }
+
+  async updatePortfolio(id: string, userId: string, dto: UpdatePortfolioDto) {
+    const portfolio = await this.prisma.umkmPortfolio.findUnique({ where: { id } });
+    if (!portfolio) throw new NotFoundException('Portofolio tidak ditemukan.');
+    if (portfolio.volunteerId !== userId) {
+      throw new ForbiddenException('Hanya pemilik portofolio yang bisa mengubahnya.');
+    }
+    return this.prisma.umkmPortfolio.update({
+      where: { id },
+      data: dto,
+      include: {
+        umkmNeed: { select: { id: true, namaUsaha: true, category: true } },
+      },
+    });
+  }
+
+  async deletePortfolio(id: string, userId: string) {
+    const portfolio = await this.prisma.umkmPortfolio.findUnique({ where: { id } });
+    if (!portfolio) throw new NotFoundException('Portofolio tidak ditemukan.');
+    if (portfolio.volunteerId !== userId) {
+      throw new ForbiddenException('Hanya pemilik portofolio yang bisa menghapusnya.');
+    }
+    return this.prisma.umkmPortfolio.delete({ where: { id } });
+  }
+
+  async getVolunteerPortfolio(volunteerId: string, take: number) {
+    return this.prisma.umkmPortfolio.findMany({
+      where: { volunteerId, isPublished: true },
+      include: {
+        umkmNeed: { select: { id: true, namaUsaha: true, category: true } },
+        response: { select: { id: true, pesan: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
   }
 }

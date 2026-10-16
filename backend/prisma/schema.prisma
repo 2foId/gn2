@@ -98,6 +98,7 @@ model User {
   keahlian      SkillCategory[] @default([])
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
+  portfolios    UmkmPortfolio[]
   kontakVerified Boolean @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -319,6 +320,7 @@ model UmkmNeed {
   foto        String[]       @default([])
   dibutuhkanSebelum DateTime?
   category    SkillCategory  @default(LAINNYA)
+  portfolios  UmkmPortfolio[]
 
   @@map("umkm_needs")
 }
@@ -331,8 +333,28 @@ model UmkmResponse {
   penolong   User     @relation(fields: [penolongId], references: [id])
   pesan      String
   createdAt  DateTime @default(now())
+  portfolio  UmkmPortfolio?
 
   @@map("umkm_responses")
+}
+
+model UmkmPortfolio {
+  id          String         @id @default(uuid())
+  responseId  String         @unique
+  response    UmkmResponse   @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  volunteerId String
+  volunteer   User           @relation(fields: [volunteerId], references: [id])
+  umkmNeedId  String
+  umkmNeed    UmkmNeed       @relation(fields: [umkmNeedId], references: [id], onDelete: Cascade)
+  category    SkillCategory
+  title       String         @db.VarChar(80)
+  description String         @db.VarChar(500)
+  beforeImageUrl String
+  afterImageUrl  String
+  isPublished   Boolean      @default(true)
+  createdAt   DateTime       @default(now())
+
+  @@map("umkm_portfolios")
 }
 
 // =========================================

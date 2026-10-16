@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
@@ -31,6 +32,7 @@ const KATEGORI_OPSI = [
 
 export default function UmkmPage() {
   const user = useAuthStore((s) => s.user);
+  const router = useRouter();
   const [items, setItems] = useState<UmkmItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -38,6 +40,7 @@ export default function UmkmPage() {
   const [responError, setResponError] = useState<string | null>(null);
   const [deleteUmkmId, setDeleteUmkmId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [showPortfolioForm, setShowPortfolioForm] = useState<string | null>(null);
   const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
 
   const loadData = useCallback(async () => {
@@ -240,8 +243,21 @@ export default function UmkmPage() {
             {expanded === item.id && (
               <div className="mt-4 space-y-3 border-t border-stone-100 pt-4">
                 {item.responses?.map((r) => (
-                  <div key={r.id} className="rounded-lg bg-guyub-krem p-3">
-                    <UserIdentity user={r.penolong} />
+                  <div key={r.id} className="rounded-lg bg-guyub-krem p-3 flex flex-col gap-2">
+                    <div className="flex items-start justify-between">
+                      <UserIdentity user={r.penolong} />
+                      {user?.id === r.penolong.id && item.status === 'SELESAI' && (
+                        <button
+                          onClick={() => {
+                            setShowPortfolioForm(r.id);
+                            router.push(`/dashboard/umkm/portfolio/${r.id}`);
+                          }}
+                          className="font-body text-xs font-medium text-guyub-bambuDark underline"
+                        >
+                          Tambah Portofolio
+                        </button>
+                      )}
+                    </div>
                     <p className="font-body text-sm text-stone-600">{r.pesan}</p>
                   </div>
                 ))}

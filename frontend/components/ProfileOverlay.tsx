@@ -59,6 +59,8 @@ export function ProfileOverlay() {
     const [noteText, setNoteText] = useState('');
     const [showNoteEditor, setShowNoteEditor] = useState(false);
     const [themeError, setThemeError] = useState<string | null>(null);
+    const [portfolios, setPortfolios] = useState<any[]>([]);
+    const [portfolioLoading, setPortfolioLoading] = useState(false);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -87,6 +89,17 @@ export function ProfileOverlay() {
             setNotes(notesResponse.data);
             setNoteText('');
             setShowNoteEditor(false);
+
+            // Muat portofolio relawan (hanya yang dipublikasikan)
+            try {
+                setPortfolioLoading(true);
+                const portfolioResponse = await api.get(`/volunteers/${userId}/portfolio`);
+                setPortfolios(Array.isArray(portfolioResponse.data) ? portfolioResponse.data : []);
+            } catch {
+                setPortfolios([]);
+            } finally {
+                setPortfolioLoading(false);
+            }
         }
         window.addEventListener('guyub:open-profile', openProfile);
         return () => window.removeEventListener('guyub:open-profile', openProfile);
@@ -140,6 +153,52 @@ export function ProfileOverlay() {
         setError(null);
     }
 
+    async function copySummary(portfolio: any) {
+        const text = [
+            `Judul: ${portfolio.title}`,
+            `Kategori: ${skillLabel(portfolio.category)}`,
+            `Deskripsi: ${portfolio.description}`,
+            `Tautan: ${window.location.origin}/volunteer/${portfolio.volunteerId}/portfolio`,
+        ].join('\n\n');
+        try {
+            await navigator.clipboard.writeText(text);
+            setError('Ringkasan disalin ke papan klip.');
+            setTimeout(() => setError(null), 3000);
+        } catch {
+            setError('Gagal menyalin ringkasan.');
+        }
+    }
+
+    async function downloadCard(portfolio: any) {
+        try {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = portfolio.afterImageUrl;
+            await new Promise<void>((resolve) => { img.onload = () => resolve(); });
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 627;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.fillStyle = '#F7F2E9';
+            ctx.fillRect(0, 0, 1200, 627);
+            ctx.drawImage(img, 0, 0, 480, 320);
+            ctx.fillStyle = '#2A4A32';
+            ctx.font = 'bold 48px "Helvetica Now Display Cn Med", sans-serif';
+            ctx.fillText(portfolio.title, 520, 200);
+            ctx.font = '24px "Helvetica Now Display Cn Med", sans-serif';
+            ctx.fillText(`Kategori: ${skillLabel(portfolio.category)}`, 520, 260);
+            ctx.fillText(`Usaha: ${portfolio.umkmNeed?.namaUsaha ?? '-'}`, 520, 300);
+            const url = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `portofolio-${portfolio.title.replace(/\s+/g, '_')}.png`;
+            link.href = url;
+            link.click();
+        } catch {
+            setError('Gagal mengunduh kartu.');
+        }
+    }
+
     async function saveNote(event: React.FormEvent) {
         event.preventDefault();
         if (!profile || !noteText.trim()) return;
@@ -150,6 +209,7 @@ export function ProfileOverlay() {
     }
 
     if (!profile) return null;
+
     const isMine = profile.id === currentUser?.id;
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-6" role="dialog" aria-modal="true" onClick={() => setProfile(null)}>
@@ -185,6 +245,50 @@ export function ProfileOverlay() {
                     <p className="font-body text-xs text-stone-600">{levelInfo.xpSaatIni} / {levelInfo.xpDibutuhkan} XP</p>
                 </div>}
                 {profile.dusun && <p className="mt-1 font-body text-sm text-stone-500">{profile.dusun}</p>}
+                {isMine && (
+                    <div className="mt-6">
+                        <h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Portofolio</h3>
+                        {portfolioLoading ? (
+                            <p className="font-body text-sm text-stone-600">Memuat portofolio…</p>
+                        ) : portfolios.length === 0 ? (
+                            <p className="font-body text-sm text-stone-500">Belum ada portofolio yang ditampilkan.</p>
+                        ) : (
+                            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {portfolios.map((p) => (
+                                    <div key={p.id} className="rounded-xl border-2 border-yellow-400 bg-white p-3 shadow-sm">
+                                        <div className="relative aspect-[4/3] overflow-hidden rounded-lg mb-2">
+                                            {p.beforeImageUrl && (
+                                                <img src={p.beforeImageUrl} alt="Sebelum" className="w-full h-full object-cover" />
+                                            )}
+                                            {p.afterImageUrl && (
+                                                <img src={p.afterImageUrl} alt="Sesudah" className="w-full h-full object-cover absolute inset-0 opacity-60" />
+                                            )}
+                                        </div>
+                                        <h4 className="font-display font-semibold text-guyub-bambuDark">{p.title}</h4>
+                                        <SkillChip value={p.category} />
+                                        <p className="mt-1 font-body text-xs text-stone-600 line-clamp-2">{p.description}</p>
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => copySummary(p)}
+                                                className="flex-1 rounded-full border border-stone-300 px-3 py-1 font-body text-xs text-stone-600 hover:bg-stone-50"
+                                            >
+                                                Salin Ringkasan
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => downloadCard(p)}
+                                                className="rounded-full border border-stone-300 px-3 py-1 font-body text-xs text-stone-600 hover:bg-stone-50"
+                                            >
+                                                Unduh Kartu
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="mt-5 border-t border-stone-100 pt-4">
                     <button type="button" onClick={() => setShowNoteEditor((current) => !current)} className="font-body text-sm font-medium text-guyub-bambuDark flex items-center gap-1">
                         <img src="/icons/catatan.svg" alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />
