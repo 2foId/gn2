@@ -16,6 +16,7 @@ interface Profile {
     avatarUrl?: string | null;
     bio?: string | null;
     dusun?: string | null;
+    kabupatenKota?: string | null;
     role: string;
     keahlian?: string[];
     ketersediaan?: string | null;
@@ -23,7 +24,7 @@ interface Profile {
     kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
     themePreference?: ThemePreference;
     createdAt: string;
-}
+  }
 
 interface ProfileNote {
     id: string;
@@ -248,15 +249,16 @@ export function ProfileOverlay() {
                             <div className="mt-3">
                                 <ProfileEditForm
                                     key={profile.id}
-                                    initialValues={{
-                                        ...emptyProfileEditValues(profile.nama),
-                                        phone: profile.phone?.replace(/^\+62/, '') ?? '',
-                                        bio: profile.bio ?? '',
-                                        avatarUrl: profile.avatarUrl ?? '',
-                                        keahlian: profile.keahlian ?? [],
-                                        ketersediaan: profile.ketersediaan ?? '',
-                                        tanggalLahir: profile.tanggalLahir ? new Date(profile.tanggalLahir).toISOString().slice(0, 10) : '',
-                                    }}
+initialValues={{
+                                         ...emptyProfileEditValues(profile?.nama),
+                                         phone: profile?.phone?.replace(/^\+62/, '') ?? '',
+                                         kabupatenKota: profile?.kabupatenKota ?? '',
+                                         bio: profile?.bio ?? '',
+                                         avatarUrl: profile?.avatarUrl ?? '',
+                                         keahlian: profile?.keahlian ?? [],
+                                         ketersediaan: profile?.ketersediaan ?? '',
+                                         tanggalLahir: profile?.tanggalLahir ? new Date(profile.tanggalLahir).toISOString().slice(0, 10) : '',
+                                       }}
                                     role={profile.role}
                                     onSubmit={saveProfile}
                                     error={error}

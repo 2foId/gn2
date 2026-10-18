@@ -69,13 +69,18 @@ export default function OnboardingPage() {
       setError('Pilih bidang sebelum menyelesaikan onboarding.');
       return;
     }
+    if (role === 'PENGGERAK' && !values.kabupatenKota) {
+      setError('Lengkapi kabupaten/kota sebelum menyelesaikan onboarding.');
+      return;
+    }
 
     setLoading(true);
     setError('');
     try {
-      const { phone, ...profileFields } = values;
+      const { phone, kabupatenKota, ...profileFields } = values;
       await api.patch('/users/me/profile', {
         ...profileFields,
+        kabupatenKota: role === 'PENGGERAK' ? kabupatenKota : undefined,
         ...(role === 'PENGGERAK' ? { phone: phone ? `+62${phone.replace(/\D/g, '')}` : null } : {}),
         tanggalLahir: values.tanggalLahir || undefined,
         ketersediaan: values.ketersediaan || undefined,
@@ -95,6 +100,7 @@ export default function OnboardingPage() {
 
   const initialProfile = {
     ...emptyProfileEditValues(user?.nama ?? ''),
+    kabupatenKota: user?.kabupatenKota ?? '',
     bio: user?.bio ?? '',
     avatarUrl: user?.avatarUrl ?? '',
     keahlian: user?.keahlian ?? [],

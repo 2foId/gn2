@@ -70,4 +70,9 @@ export class UpdateProfileDto {
     @IsDateString({}, { message: 'Tanggal lahir harus berupa tanggal ISO yang valid' })
     @Validate(ValidBirthDateConstraint)
     tanggalLahir?: string;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(100, { message: 'Kabupaten/kota maksimal 100 karakter' })
+    kabupatenKota?: string;
 }

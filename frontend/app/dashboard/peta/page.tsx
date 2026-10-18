@@ -9,6 +9,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import type { MapPin } from '@/components/MapView';
 import { UserAvatar, UserIdentity } from '@/components/UserIdentity';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { KabupatenSelect } from '@/components/KabupatenSelect';
 
 // Leaflet butuh window/document, jadi di-load hanya di client (tidak di-SSR)
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), {
@@ -101,6 +102,26 @@ export default function PetaPage() {
     dibutuhkanSebelum: '',
     preferensiRelawan: 'SEMUA',
   });
+  const [kabupatenLabel, setKabupatenLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    if (user.kabupatenKota) {
+      setKabupatenLabel(user.kabupatenKota);
+      return;
+    }
+    let cancelled = false;
+    async function loadProfile() {
+      try {
+        const res = await api.get('/users/me/profile');
+        if (!cancelled && res.data?.kabupatenKota) setKabupatenLabel(res.data.kabupatenKota);
+      } catch {
+        // abaikan
+      }
+    }
+    loadProfile();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const selectedLocation: [number, number] = [parseFloat(form.latitude), parseFloat(form.longitude)];
 
@@ -411,8 +432,8 @@ export default function PetaPage() {
               {touched.alamat && errors.alamat && <p className="mt-1 text-xs text-red-600">{errors.alamat}</p>}
             </div>
           </div>
-          <div className="max-w-sm">
-            <label className="block font-body text-sm font-medium text-stone-700">Tenggat (tanggal dan jam) <span className="text-red-500">*</span></label>
+<div className="max-w-sm">
+            <label className="block font-body text-sm font-medium text-stone-700">Tenggat ( tanggal dan jam) <span className="text-red-500">*</span></label>
             <input
               type="datetime-local"
               required
@@ -425,6 +446,17 @@ export default function PetaPage() {
             />
             {!form.dibutuhkanSebelum && <p className="mt-1 font-body text-xs text-guyub-merahBata">Tenggat wajib diisi.</p>}
           </div>
+          {kabupatenLabel && (
+            <div className="max-w-sm">
+              <label className="block font-body text-sm font-medium text-stone-700">Kabupaten/Kota</label>
+              <input
+                readOnly
+                value={kabupatenLabel}
+                className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 font-body text-stone-700 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300"
+              />
+              <p className="mt-1 font-body text-xs text-stone-500">Diisi otomatis dari profil.</p>
+            </div>
+          )}
           <fieldset>
             <legend className="font-body text-sm font-medium text-stone-700">Siapa yang kamu harapkan membantu?</legend>
             <div className="mt-3 grid gap-5 md:grid-cols-3">

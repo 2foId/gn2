@@ -44,6 +44,26 @@ export default function UmkmPage() {
   const [showPortfolioForm, setShowPortfolioForm] = useState<string | null>(null);
   const [ratingStates, setRatingStates] = useState<Record<string, { score: number; comment: string; submitting: boolean; submitted: boolean }>>({});
   const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
+  const [kabupatenLabel, setKabupatenLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    if (user.kabupatenKota) {
+      setKabupatenLabel(user.kabupatenKota);
+      return;
+    }
+    let cancelled = false;
+    async function loadProfile() {
+      try {
+        const res = await api.get('/users/me/profile');
+        if (!cancelled && res.data?.kabupatenKota) setKabupatenLabel(res.data.kabupatenKota);
+      } catch {
+        // abaikan
+      }
+    }
+    loadProfile();
+    return () => { cancelled = true; };
+  }, [user?.id]);
 
   const loadData = useCallback(async () => {
     const res = await api.get('/umkm', { params: categoryFilter ? { category: categoryFilter } : undefined });
@@ -66,7 +86,7 @@ export default function UmkmPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await api.post('/umkm', form);
+    await api.post('/umkm', { ...form, kabupatenKota: kabupatenLabel ?? undefined });
     setShowForm(false);
     setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
     loadData();
@@ -195,6 +215,17 @@ export default function UmkmPage() {
               ))}
             </select>
           </div>
+          {kabupatenLabel && (
+            <div>
+              <label className="block font-body text-sm font-medium text-stone-700">Kabupaten/Kota</label>
+              <input
+                readOnly
+                value={kabupatenLabel}
+                className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 font-body text-stone-700 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300"
+              />
+              <p className="mt-1 font-body text-xs text-stone-500">Diisi otomatis dari profil.</p>
+            </div>
+          )}
           <button
             type="submit"
             className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95"

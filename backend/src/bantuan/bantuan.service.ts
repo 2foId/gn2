@@ -25,12 +25,14 @@ export class BantuanService {
     return false;
   }
 
-  create(userId: string, dto: CreateBantuanDto) {
+  async create(userId: string, dto: CreateBantuanDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
     return this.prisma.bantuanRequest.create({
       data: {
         ...dto,
         dibutuhkanSebelum: dto.dibutuhkanSebelum ? new Date(dto.dibutuhkanSebelum) : undefined,
         pembuatId: userId,
+        kabupatenKota: user?.kabupatenKota ?? null,
         status: BantuanStatus.MENUNGGU_VERIFIKASI,
       },
     });
@@ -201,6 +203,11 @@ export class BantuanService {
     if (!kesediaan || kesediaan.status !== KesediaanStatus.AKTIF) {
       throw new ForbiddenException('Hanya Penggerak yang membantu bantuan ini yang dapat mengajukan jam.');
     }
+    const penggerak = await this.prisma.user.findUnique({ where: { id: penggerakId }, select: { kabupatenKota: true } });
+    if (!penggerak?.kabupatenKota) {
+      throw new BadRequestException('Lengkapi kabupaten/kota pada profil sebelum mengajukan jam kontribusi.');
+    }
+
     if (!bantuan.dibutuhkanSebelum) {
       throw new BadRequestException('Jadwal bantuan tidak tersedia untuk menghitung batas jam.');
     }

@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
 import { UserAvatar } from '@/components/UserIdentity';
 import { SkillChip } from '@/components/SkillChip';
+import { KabupatenSelect } from '@/components/KabupatenSelect';
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api').replace(/\/api\/?$/, '');
 
@@ -20,6 +21,7 @@ const skills = [
 export interface ProfileEditValues {
   nama: string;
   phone: string;
+  kabupatenKota: string;
   bio: string;
   avatarUrl: string;
   keahlian: string[];
@@ -28,7 +30,7 @@ export interface ProfileEditValues {
 }
 
 export function emptyProfileEditValues(nama = ''): ProfileEditValues {
-  return { nama, phone: '', bio: '', avatarUrl: '', keahlian: [], ketersediaan: '', tanggalLahir: '' };
+  return { nama, phone: '', kabupatenKota: '', bio: '', avatarUrl: '', keahlian: [], ketersediaan: '', tanggalLahir: '' };
 }
 
 export function ProfileEditForm({
@@ -55,7 +57,11 @@ export function ProfileEditForm({
   const [avatarError, setAvatarError] = useState('');
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [touchedKabupaten, setTouchedKabupaten] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const kabupatenError = role === 'PENGGERAK' && touchedKabupaten && !form.kabupatenKota ? 'Kabupaten/kota wajib diisi' : '';
+  const canSubmit = !saving && !avatarLoading && form.nama.length <= 20 && !kabupatenError;
 
   async function uploadAvatar(file: File | undefined) {
     if (!file) return;
@@ -138,6 +144,14 @@ export function ProfileEditForm({
         </div>
         <p className="mt-1 font-body text-xs text-stone-600 dark:text-stone-300">Opsional. Dipakai agar orang bisa menghubungimu lewat WhatsApp.</p>
       </div>}
+      <KabupatenSelect
+        value={form.kabupatenKota}
+        onChange={(value) => setForm({ ...form, kabupatenKota: value })}
+        onBlur={() => setTouchedKabupaten(true)}
+        label="Kabupaten/Kota"
+        required={role === 'PENGGERAK'}
+        error={kabupatenError}
+      />
       <textarea aria-label="Bio" value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} maxLength={280} className="min-h-28 w-full resize-y rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-stone-800 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100" placeholder="Bio singkat" />
       <section className="space-y-3 rounded-xl border border-guyub-gula bg-white p-4 dark:bg-stone-900">
         <h3 className="font-display text-lg font-semibold text-guyub-bambuDark dark:text-stone-100">Keahlian &amp; Ketersediaan</h3>
@@ -168,7 +182,7 @@ export function ProfileEditForm({
       {children}
       {error && <p role="alert" className="font-body text-sm text-guyub-merahBata">{error}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={saving || avatarLoading || form.nama.length > 20} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="submit" disabled={canSubmit} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
           {saving ? 'Menyimpan…' : submitLabel}
         </button>
         {onCancel && <button type="button" onClick={onCancel} className="rounded-full border border-stone-300 px-4 py-2 font-body text-sm text-stone-700 dark:border-stone-500 dark:text-stone-100">Batal</button>}

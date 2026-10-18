@@ -82,4 +82,48 @@ export class DampakService {
             trenMingguan: trends,
         };
     }
+
+    async getKabupaten() {
+        const bantuan = await this.prisma.bantuanRequest.groupBy({ by: ['kabupatenKota'], where: { status: 'SELESAI' }, _count: { _all: true } });
+        const jam = await this.prisma.jamKontribusi.findMany({ where: { status: 'TERKONFIRMASI' }, select: { jumlahJam: true, penggerak: { select: { kabupatenKota: true } } } });
+        const jamByKab = new Map<string | null, number>();
+        for (const j of jam) {
+            const kab = j.penggerak?.kabupatenKota ?? null;
+            jamByKab.set(kab, (jamByKab.get(kab) ?? 0) + j.jumlahJam.toNumber());
+        }
+        const umkm = await this.prisma.umkmNeed.groupBy({ by: ['kabupatenKota'], where: { status: 'SELESAI' }, _count: { _all: true } });
+
+        const map = new Map<string | null, { bantuanSelesai: number; jamTerkonfirmasi: number; umkmTerbantu: number }>();
+        const get = (k: string | null) => {
+            if (!map.has(k)) map.set(k, { bantuanSelesai: 0, jamTerkonfirmasi: 0, umkmTerbantu: 0 });
+            return map.get(k)!;
+        };
+        for (const b of bantuan) get(b.kabupatenKota).bantuanSelesai = b._count._all;
+        for (const [k, v] of jamByKab) get(k).jamTerkonfirmasi = v;
+        for (const u of umkm) get(u.kabupatenKota).umkmTerbantu = u._count._all;
+
+        const rows = Array.from(map.entries()).map(([k, v]) => ({
+            kabupaten: k ?? 'Belum diisi',
+            ...v,
+            total: v.bantuanSelesai + v.umkmTerbantu,
+        }));
+
+        const big = rows.filter((r) => r.total >= 3 && r.kabupaten !== 'Belum diisi');
+        const small = rows.filter((r) => !(r.total >= 3 && r.kabupaten !== 'Belum diisi') && r.kabupaten !== 'Belum diisi');
+        const lainnya = small.reduce((acc, r) => ({
+            kabupaten: 'Lainnya',
+            bantuanSelesai: acc.bantuanSelesai + r.bantuanSelesai,
+            jamTerkonfirmasi: acc.jamTerkonfirmasi + r.jamTerkonfirmasi,
+            umkmTerbantu: acc.umkmTerbantu + r.umkmTerbantu,
+            total: acc.total + r.total,
+        }), { kabupaten: 'Lainnya', bantuanSelesai: 0, jamTerkonfirmasi: 0, umkmTerbantu: 0, total: 0 });
+
+        const belum = rows.find((r) => r.kabupaten === 'Belum diisi');
+
+        big.sort((a, b) => b.jamTerkonfirmasi - a.jamTerkonfirmasi);
+        const result = [...big];
+        if (lainnya.total > 0) result.push(lainnya);
+        if (belum && belum.total > 0) result.push(belum);
+        return result.map(({ total, ...rest }) => rest);
+    }
 }

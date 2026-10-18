@@ -122,6 +122,7 @@ model User {
   keahlian      SkillCategory[] @default([])
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
+  kabupatenKota String?
   portfolios    UmkmPortfolio[]
   ratingsFrom   UmkmRating[] @relation("RatingFrom")
   ratingsTo     UmkmRating[] @relation("RatingTo")
@@ -271,7 +272,7 @@ model BantuanRequest {
 
   preferensiRelawan PreferensiRelawan @default(SEMUA)
   selesaiAt     DateTime?
-
+  kabupatenKota String?
   verifikatorId String?
   verifikator   User?           @relation("BantuanVerifikator", fields: [verifikatorId], references: [id])
   verifiedAt    DateTime?
@@ -420,6 +421,7 @@ model UmkmNeed {
   status      UmkmNeedStatus @default(DIBUKA)
   pemilikId   String
   pemilik     User           @relation(fields: [pemilikId], references: [id])
+  kabupatenKota String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

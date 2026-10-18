@@ -9,4 +9,9 @@ export class DampakController {
     getRingkasan() {
         return this.dampakService.getRingkasan();
     }
+
+    @Get('kabupaten')
+    getKabupaten() {
+        return this.dampakService.getKabupaten();
+    }
 }

@@ -20,6 +20,7 @@ export interface AuthUser {
   role: Role;
   onboardingDone?: boolean;
   dusun?: string | null;
+  kabupatenKota?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;
   keahlian?: string[];

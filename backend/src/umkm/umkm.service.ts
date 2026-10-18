@@ -9,12 +9,14 @@ import { CreateUmkmRatingDto } from './dto/create-rating.dto';
 export class UmkmService {
   constructor(private prisma: PrismaService) { }
 
-  create(userId: string, dto: CreateUmkmNeedDto) {
+  async create(userId: string, dto: CreateUmkmNeedDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
     return this.prisma.umkmNeed.create({
       data: {
         ...dto,
         dibutuhkanSebelum: dto.dibutuhkanSebelum ? new Date(dto.dibutuhkanSebelum) : undefined,
         pemilikId: userId,
+        kabupatenKota: user?.kabupatenKota ?? null,
       },
     });
   }

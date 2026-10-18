@@ -100,6 +100,7 @@ export class UsersService {
         ketersediaan: true,
         tanggalLahir: true,
         themePreference: true,
+        kabupatenKota: true,
         createdAt: true,
       },
     });
@@ -151,6 +152,7 @@ export class UsersService {
         ketersediaan: true,
         tanggalLahir: true,
         themePreference: true,
+        kabupatenKota: true,
         createdAt: true,
       },
     });
