@@ -157,19 +157,59 @@ export class UsersService {
     return { ...user, kategoriUsia: this.kategoriUsia(user.tanggalLahir) };
   }
 
-  async completeOnboarding(id: string, role: 'PELAJAR' | 'PENGGERAK') {
+  async saveOnboardingAge(id: string, age: number) {
+    if (!Number.isInteger(age) || age < 13 || age > 30) {
+      throw new BadRequestException('Umur harus antara 13 dan 30 tahun.');
+    }
+    const role = age <= 17 ? 'PELAJAR' : 'PENGGERAK';
     const result = await this.prisma.user.updateMany({
       where: { id, onboardingDone: false },
       data: {
+        age,
         role,
-        onboardingDone: true,
-        ...(role === 'PELAJAR' ? { phone: null } : {}),
+        ...(role === 'PELAJAR' ? { phone: null, bidang: null } : {}),
       },
     });
+    if (result.count !== 1) throw new BadRequestException('Onboarding sudah selesai.');
+    return { age, role };
+  }
+
+  async saveOnboardingBidang(id: string, bidang: string) {
+    const result = await this.prisma.user.updateMany({
+      where: { id, role: 'PENGGERAK', onboardingDone: false },
+      data: { bidang },
+    });
     if (result.count !== 1) {
-      throw new BadRequestException('Peran sudah dikunci setelah onboarding selesai.');
+      throw new BadRequestException('Bidang hanya dapat dipilih oleh Penggerak saat onboarding.');
     }
+    return { bidang };
+  }
+
+  async completeOnboarding(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { age: true, role: true, bidang: true, onboardingDone: true },
+    });
+    if (!user || user.onboardingDone) throw new BadRequestException('Onboarding sudah selesai.');
+    if (user.age === null) throw new BadRequestException('Umur wajib diisi sebelum menyelesaikan onboarding.');
+    if (user.role === 'PENGGERAK' && !user.bidang) {
+      throw new BadRequestException('Bidang wajib dipilih oleh Penggerak.');
+    }
+
+    const result = await this.prisma.user.updateMany({
+      where: { id, onboardingDone: false, age: { not: null } },
+      data: { onboardingDone: true },
+    });
+    if (result.count !== 1) throw new BadRequestException('Onboarding sudah selesai.');
     return this.findMyProfile(id);
+  }
+
+  updateAvatar(id: string, avatarUrl: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { avatarUrl },
+      select: { id: true, nama: true, avatarUrl: true },
+    });
   }
 
   async findNotes(authorId: string, targetUserId: string) {

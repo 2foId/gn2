@@ -95,6 +95,8 @@ model User {
   rw            String?
   role          Role     @default(PELAJAR)
   onboardingDone Boolean @default(false)
+  age           Int?
+  bidang        String?
   xpTotal       Int      @default(0)
   level         Int      @default(1)
   currency      Int      @default(0)

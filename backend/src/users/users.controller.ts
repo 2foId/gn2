@@ -1,11 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { randomUUID } from 'crypto';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateThemeDto } from './dto/update-theme.dto';
-import { OnboardingDto } from './dto/onboarding.dto';
+import { OnboardingAgeDto } from './dto/onboarding-age.dto';
+import { OnboardingBidangDto } from './dto/onboarding-bidang.dto';
+
+const avatarExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
+const avatarMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 @Controller('users')
 export class UsersController {
@@ -42,9 +50,39 @@ export class UsersController {
     }
 
     @UseGuards(JwtAuthGuard)
-    @Post('onboarding')
-    completeOnboarding(@CurrentUser('id') userId: string, @Body() dto: OnboardingDto) {
-        return this.usersService.completeOnboarding(userId, dto.role);
+    @Post('onboarding/age')
+    saveOnboardingAge(@CurrentUser('id') userId: string, @Body() dto: OnboardingAgeDto) {
+        return this.usersService.saveOnboardingAge(userId, dto.age);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('onboarding/bidang')
+    saveOnboardingBidang(@CurrentUser('id') userId: string, @Body() dto: OnboardingBidangDto) {
+        return this.usersService.saveOnboardingBidang(userId, dto.bidang);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('onboarding/selesai')
+    completeOnboarding(@CurrentUser('id') userId: string) {
+        return this.usersService.completeOnboarding(userId);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('avatar')
+    @UseInterceptors(FileInterceptor('file', {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: (_request, file, callback) => callback(null, `${randomUUID()}${extname(file.originalname).toLowerCase()}`),
+        }),
+        limits: { fileSize: 2 * 1024 * 1024 },
+        fileFilter: (_request, file, callback) => {
+            const extension = extname(file.originalname).toLowerCase();
+            callback(null, avatarMimeTypes.has(file.mimetype) && avatarExtensions.has(extension));
+        },
+    }))
+    uploadAvatar(@CurrentUser('id') userId: string, @UploadedFile() file: { filename: string } | undefined) {
+        if (!file) throw new BadRequestException('Foto harus JPG, PNG, atau WEBP dan berukuran maksimal 2 MB.');
+        return this.usersService.updateAvatar(userId, `/uploads/${file.filename}`);
     }
 
     @UseGuards(JwtAuthGuard)
