@@ -246,6 +246,22 @@ POST /api/uploads/image   (multipart/form-data, field "file")
 folder `uploads/` **tidak persisten** (hilang saat redeploy) — untuk
 production sungguhan perlu pindah ke object storage (S3, Cloudinary, dll).
 
+## Ekspor Portofolio ke LinkedIn
+
+Setiap kartu portofolio milik sendiri di halaman profil dilengkapi dua tombol
+untuk dibagikan ke LinkedIn secara manual:
+
+- **Salin Ringkasan** — menyalin teks berisi judul, kategori, deskripsi (maks
+  300 karakter), nama usaha, dan tautan portofolio publik ke papan klip.
+  Tempelkan secara manual di postingan LinkedIn. Jika papan klip tidak tersedia,
+  teks akan ditampilkan di kotak yang bisa disalin manual.
+- **Unduh Kartu** — mengunduh gambar PNG (1200 × 627 px) yang berisi foto
+  sesudah, judul, kategori, nama usaha, dan nama penggerak. Berkas dapat
+  diunggah secara manual ke LinkedIn.
+
+Tidak ada integrasi API LinkedIn. Semua pengunggahan dilakukan secara manual
+oleh pengguna.
+
 ## Arsitektur Auth
 
 - **Access Token** (15 menit) disimpan di **state memory frontend** (Zustand),

@@ -79,6 +79,8 @@ export function ProfileOverlay() {
     const [iklanMessage, setIklanMessage] = useState<string | null>(null);
     const [showConfirmDialog, setShowConfirmDialog] = useState(false);
     const [iklanActionLoading, setIklanActionLoading] = useState(false);
+    const [copyText, setCopyText] = useState<string | null>(null);
+    const [copyConfirm, setCopyConfirm] = useState<string | null>(null);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -263,48 +265,86 @@ export function ProfileOverlay() {
     }
 
     async function copySummary(portfolio: any) {
+        const deskripsi = (portfolio.description || '').slice(0, 300);
+        const namaUsaha = portfolio.umkmNeed?.namaUsaha ?? '-';
         const text = [
             `Judul: ${portfolio.title}`,
             `Kategori: ${skillLabel(portfolio.category)}`,
-            `Deskripsi: ${portfolio.description}`,
+            `Deskripsi: ${deskripsi}`,
+            `Usaha: ${namaUsaha}`,
             `Tautan: ${window.location.origin}/volunteer/${portfolio.volunteerId}/portfolio`,
         ].join('\n\n');
+        setCopyText(text);
+        setError(null);
         try {
             await navigator.clipboard.writeText(text);
-            setError('Ringkasan disalin ke papan klip.');
-            setTimeout(() => setError(null), 3000);
+            setCopyConfirm('Tersalin');
+            setTimeout(() => setCopyConfirm(null), 2000);
         } catch {
-            setError('Gagal menyalin ringkasan.');
+            setError('Gagal menyalin ringkasan. Salin teks di bawah secara manual.');
         }
     }
 
     async function downloadCard(portfolio: any) {
+        setError(null);
         try {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.src = portfolio.afterImageUrl;
-            await new Promise<void>((resolve) => { img.onload = () => resolve(); });
             const canvas = document.createElement('canvas');
             canvas.width = 1200;
             canvas.height = 627;
             const ctx = canvas.getContext('2d');
-            if (!ctx) return;
+            if (!ctx) {
+                setError('Gagal membuat kanvas.');
+                return;
+            }
+
             ctx.fillStyle = '#F7F2E9';
             ctx.fillRect(0, 0, 1200, 627);
-            ctx.drawImage(img, 0, 0, 480, 320);
+
+            let fotoLoaded = false;
+            if (portfolio.afterImageUrl) {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = portfolio.afterImageUrl;
+                await new Promise<void>((resolve) => {
+                    img.onload = () => { fotoLoaded = true; resolve(); };
+                    img.onerror = () => resolve();
+                });
+                if (fotoLoaded) {
+                    const fotoWidth = 480;
+                    const fotoHeight = 320;
+                    const sx = 0;
+                    const sy = 0;
+                    const sw = img.width;
+                    const sh = Math.round((sw * fotoHeight) / fotoWidth);
+                    const sx2 = Math.max(0, Math.round((img.height - sh) / 2));
+                    ctx.drawImage(img, sx, sx2, sw, sh, 40, 140, fotoWidth, fotoHeight);
+                }
+            }
+
             ctx.fillStyle = '#2A4A32';
-            ctx.font = 'bold 48px "Helvetica Now Display Cn Med", sans-serif';
-            ctx.fillText(portfolio.title, 520, 200);
+            ctx.font = 'bold 40px "Helvetica Now Display Cn Med", sans-serif';
+            ctx.fillText(portfolio.title, 560, 180);
             ctx.font = '24px "Helvetica Now Display Cn Med", sans-serif';
-            ctx.fillText(`Kategori: ${skillLabel(portfolio.category)}`, 520, 260);
-            ctx.fillText(`Usaha: ${portfolio.umkmNeed?.namaUsaha ?? '-'}`, 520, 300);
-            const url = canvas.toDataURL('image/png');
+            ctx.fillText(`Kategori: ${skillLabel(portfolio.category)}`, 560, 240);
+            ctx.fillText(`Usaha: ${portfolio.umkmNeed?.namaUsaha ?? '-'}`, 560, 290);
+            ctx.fillText(`Penggerak: ${currentUser?.nama ?? '-'}`, 560, 340);
+
+            const blob = await new Promise<Blob | null>((resolve) => {
+                canvas.toBlob((b) => resolve(b), 'image/png');
+            });
+            if (!blob) {
+                setError('Gagal membuat berkas kartu.');
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            const slug = (portfolio.title || 'portofolio').toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
             const link = document.createElement('a');
-            link.download = `portofolio-${portfolio.title.replace(/\s+/g, '_')}.png`;
+            link.download = `portofolio-${slug}.png`;
             link.href = url;
             link.click();
+            URL.revokeObjectURL(url);
         } catch {
-            setError('Gagal mengunduh kartu.');
+        setError('Gagal mengunduh kartu.');
         }
     }
 
@@ -653,6 +693,18 @@ initialValues={{
                                                 Unduh Kartu
                                             </button>
                                         </div>
+                                        {copyConfirm && <p className="mt-2 font-body text-xs text-guyub-bambuDark">{copyConfirm}</p>}
+                                        {copyText && (
+                                            <div className="mt-2 rounded-lg border border-stone-300 bg-white p-2">
+                                                <textarea
+                                                    readOnly
+                                                    value={copyText}
+                                                    className="w-full font-body text-xs text-stone-700 bg-transparent border-none focus:ring-0"
+                                                    rows={4}
+                                                />
+                                                <p className="mt-1 font-body text-xs text-stone-500 text-right">Salin teks di atas secara manual.</p>
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
