@@ -5,11 +5,13 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
 import { SkillChip, skillLabel } from '@/components/SkillChip';
+import { WhatsAppButton } from '@/components/WhatsAppButton';
 import type { ThemePreference } from '@/lib/auth-store';
 
 interface Profile {
     id: string;
     nama: string;
+    phone?: string | null;
     avatarUrl?: string | null;
     bio?: string | null;
     dusun?: string | null;
@@ -53,7 +55,7 @@ export function ProfileOverlay() {
     const [profile, setProfile] = useState<Profile | null>(null);
     const [levelInfo, setLevelInfo] = useState<LevelInfo | null>(null);
     const [editing, setEditing] = useState(false);
-    const [form, setForm] = useState({ nama: '', bio: '', avatarUrl: '', keahlian: [] as string[], ketersediaan: '', tanggalLahir: '' });
+    const [form, setForm] = useState({ nama: '', phone: '', bio: '', avatarUrl: '', keahlian: [] as string[], ketersediaan: '', tanggalLahir: '' });
     const [error, setError] = useState<string | null>(null);
     const [notes, setNotes] = useState<ProfileNote[]>([]);
     const [noteText, setNoteText] = useState('');
@@ -78,6 +80,7 @@ export function ProfileOverlay() {
             }
             setForm({
                 nama: data.nama,
+                phone: data.phone?.replace(/^\+62/, '') ?? '',
                 bio: data.bio ?? '',
                 avatarUrl: data.avatarUrl ?? '',
                 keahlian: Array.isArray(data.keahlian) ? data.keahlian : [],
@@ -123,6 +126,7 @@ export function ProfileOverlay() {
         try {
             const response = await api.patch('/users/me/profile', {
                 ...form,
+                phone: form.phone ? `+62${form.phone.replace(/\D/g, '')}` : null,
                 tanggalLahir: form.tanggalLahir || undefined,
                 ketersediaan: form.ketersediaan || undefined,
             });
@@ -225,13 +229,14 @@ export function ProfileOverlay() {
 
     const isMine = profile.id === currentUser?.id;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-6" role="dialog" aria-modal="true" onClick={() => setProfile(null)}>
-            <section className="w-full max-w-sm rounded-2xl border-2 border-yellow-400 bg-white p-6 shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-4 sm:items-center sm:px-6" role="dialog" aria-modal="true" onClick={() => setProfile(null)}>
+            <section className="w-full max-w-5xl min-w-0 rounded-2xl border border-guyub-gula bg-white p-6 shadow-sm" onClick={(event) => event.stopPropagation()}>
                 <div className="flex items-center gap-4">
                     <UserAvatar user={profile} size="lg" />
                     <div><h2 className="flex items-center gap-2 font-display text-2xl font-semibold text-guyub-bambuDark">{profile.nama}<img src="/logo.png" alt="Logo" className="h-5 w-5" /></h2>{profile.kategoriUsia === 'PEMUDA_18_30' && <span className="mt-1 inline-flex rounded-full bg-guyub-gula px-3 py-1 font-body text-xs font-semibold text-guyub-bambuDark">Pemuda 18–30</span>}<p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">{profile.role}</p></div>
                 </div>
-                <p className="mt-5 whitespace-pre-line font-body text-stone-700">{profile.bio || 'Belum ada bio.'}</p>
+                <div className="mt-5 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
+                    <div className="min-w-0">
                 {profile.keahlian && profile.keahlian.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-2">
                         {profile.keahlian.map((skill) => (
@@ -258,6 +263,25 @@ export function ProfileOverlay() {
                     <p className="font-body text-xs text-stone-600">{levelInfo.xpSaatIni} / {levelInfo.xpDibutuhkan} XP</p>
                 </div>}
                 {profile.dusun && <p className="mt-1 font-body text-sm text-stone-500">{profile.dusun}</p>}
+                    </div>
+                    <div className="min-w-0">
+                        <h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Bio</h3>
+                        {editing ? (
+                            <textarea
+                                form="profile-edit-form"
+                                aria-label="Bio"
+                                value={form.bio}
+                                onChange={(event) => setForm({ ...form, bio: event.target.value })}
+                                maxLength={280}
+                                className="mt-2 w-full resize-y rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-stone-800 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100"
+                                placeholder="Bio singkat"
+                            />
+                        ) : (
+                            <p className="mt-2 whitespace-pre-line break-words font-body text-stone-700">{profile.bio || 'Belum ada bio.'}</p>
+                        )}
+                        {!editing && profile.phone && <div className="mt-4"><WhatsAppButton phone={profile.phone} /></div>}
+                    </div>
+                </div>
                 {isMine && (
                     <div className="mt-6">
                         <h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Portofolio</h3>
@@ -361,9 +385,21 @@ export function ProfileOverlay() {
                     </button>
                 )}
                 {isMine && !editing && <button type="button" onClick={() => setEditing(true)} className="mt-5 rounded-full border border-stone-300 px-4 py-2 font-body text-sm">✎ Edit</button>}
-                {isMine && editing && <form onSubmit={saveProfile} className="mt-5 space-y-3">
-                    <input value={form.nama} onChange={(event) => setForm({ ...form, nama: event.target.value })} required className="w-full rounded-lg border border-stone-300 px-3 py-2 font-body" placeholder="Nama" />
-                    <textarea value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} maxLength={280} rows={3} className="w-full rounded-lg border border-stone-300 px-3 py-2 font-body" placeholder="Bio singkat" />
+                {isMine && editing && <form id="profile-edit-form" onSubmit={saveProfile} className="mt-5 space-y-3">
+                    <div>
+                        <label htmlFor="profile-name" className="block font-body text-sm font-medium text-stone-700">Nama</label>
+                        <input id="profile-name" value={form.nama} onChange={(event) => setForm({ ...form, nama: event.target.value })} maxLength={20} required className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-stone-800" placeholder="Nama" />
+                        <p className={`mt-1 text-right font-body text-xs ${form.nama.length > 20 ? 'text-guyub-merahBata' : 'text-stone-500'}`}>{form.nama.length}/20</p>
+                        {form.nama.length > 20 && <p role="alert" className="font-body text-sm text-guyub-merahBata">Nama melebihi 20 karakter. Perbaiki nama sebelum menyimpan.</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="profile-phone" className="block font-body text-sm font-medium text-stone-700">Nomor WhatsApp</label>
+                        <div className="mt-1 flex rounded-lg border border-stone-300 bg-white">
+                            <span className="inline-flex items-center border-r border-stone-300 px-3 font-body text-stone-700">+62</span>
+                            <input id="profile-phone" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 13) })} maxLength={13} className="min-w-0 flex-1 rounded-r-lg bg-transparent px-3 py-2 font-body text-stone-800 outline-none" placeholder="8123456789" />
+                        </div>
+                        <p className="mt-1 font-body text-xs text-stone-600">Opsional. Dipakai agar orang bisa menghubungimu lewat WhatsApp.</p>
+                    </div>
                     <section className="space-y-3 rounded-2xl border-2 border-yellow-400 bg-white p-4 shadow-sm">
                         <h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Keahlian &amp; Ketersediaan</h3>
                         <div>
@@ -419,7 +455,7 @@ export function ProfileOverlay() {
                     </section>
                     <input type="file" accept="image/*" onChange={(event) => uploadAvatar(event.target.files?.[0])} className="block w-full text-sm" />
                     {error && <p className="font-body text-sm text-guyub-merahBata">{error}</p>}
-                    <button type="submit" className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm text-white">Simpan</button>
+                    <button type="submit" disabled={form.nama.length > 20} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm text-white disabled:cursor-not-allowed disabled:opacity-50">Simpan</button>
                 </form>}
             </section>
         </div>

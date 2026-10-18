@@ -1,5 +1,5 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, Length, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, Length, Matches, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
 import { SkillCategory } from '@prisma/client';
 
 @ValidatorConstraint({ name: 'validBirthDate', async: false })
@@ -32,7 +32,16 @@ export class UpdateProfileDto {
     @IsOptional()
     @IsString()
     @MinLength(3)
+    @MaxLength(20, { message: 'Nama maksimal 20 karakter.' })
     nama?: string;
+
+    @Transform(({ value }) => typeof value === 'string' ? value.trim() || null : value)
+    @IsOptional()
+    @IsString()
+    @Matches(/^(?:08[0-9]{7,12}|\+62[0-9]{8,13})$/, {
+        message: 'Nomor WhatsApp harus diawali 08 atau +62 dan berisi 9 sampai 15 digit.',
+    })
+    phone?: string | null;
 
     @IsOptional()
     @IsString()

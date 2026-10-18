@@ -89,6 +89,7 @@ model User {
   passwordHash  String
   emailVerifiedAt DateTime?
   kontak        String?  // nomor HP opsional, tidak dipakai login
+  phone         String?
   dusun         String?
   rt            String?
   rw            String?

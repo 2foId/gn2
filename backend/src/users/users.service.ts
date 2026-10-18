@@ -64,6 +64,7 @@ export class UsersService {
       select: {
         id: true,
         nama: true,
+        phone: true,
         avatarUrl: true,
         bio: true,
         dusun: true,
@@ -85,6 +86,7 @@ export class UsersService {
       select: {
         id: true,
         nama: true,
+        phone: true,
         avatarUrl: true,
         bio: true,
         dusun: true,
@@ -100,8 +102,16 @@ export class UsersService {
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto) {
+    // TODO: Tolak phone untuk PELAJAR jika role tersebut ditambahkan ke schema.
     const payload = {
       ...dto,
+      phone: dto.phone === undefined
+        ? undefined
+        : dto.phone === null
+          ? null
+          : dto.phone.startsWith('08')
+            ? `+62${dto.phone.slice(1)}`
+            : dto.phone,
       tanggalLahir: dto.tanggalLahir ? new Date(dto.tanggalLahir) : undefined,
     };
 
@@ -111,6 +121,7 @@ export class UsersService {
       select: {
         id: true,
         nama: true,
+        phone: true,
         avatarUrl: true,
         bio: true,
         dusun: true,
