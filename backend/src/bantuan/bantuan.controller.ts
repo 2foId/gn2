@@ -19,8 +19,8 @@ export class BantuanController {
 
   // Semua warga (termasuk publik jika dibutuhkan) bisa lihat peta aktif
   @Get('peta')
-  findAllForMap(@Query('preferensi') preferensi?: PreferensiRelawan) {
-    return this.bantuanService.findAllForMap(preferensi);
+  findAllForMap(@Query('preferensi') preferensi?: PreferensiRelawan, @Query('kabupaten') kabupaten?: string) {
+    return this.bantuanService.findAllForMap(preferensi, kabupaten);
   }
 
   // Hanya Penggerak & Admin yang bisa lihat antrian verifikasi

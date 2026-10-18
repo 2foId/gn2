@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
 import { SkillChip, skillLabel } from '@/components/SkillChip';
 import { StarRating } from '@/components/StarRating';
+import { KabupatenFilter } from '@/components/KabupatenFilter';
 
 interface UmkmItem {
   id: string;
@@ -15,6 +16,7 @@ interface UmkmItem {
   deskripsi: string;
   status: string;
   category: string;
+  kabupatenKota?: string | null;
   pemilikId: string;
   pemilik: { id: string; nama: string; avatarUrl?: string | null };
   responses?: { id: string; pesan: string; penolong: { id: string; nama: string; avatarUrl?: string | null } }[];
@@ -41,6 +43,8 @@ export default function UmkmPage() {
   const [responError, setResponError] = useState<string | null>(null);
   const [deleteUmkmId, setDeleteUmkmId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [kabupatenFilter, setKabupatenFilter] = useState<string>('');
+  const searchParams = useSearchParams();
   const [showPortfolioForm, setShowPortfolioForm] = useState<string | null>(null);
   const [ratingStates, setRatingStates] = useState<Record<string, { score: number; comment: string; submitting: boolean; submitted: boolean }>>({});
   const [form, setForm] = useState({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
@@ -66,7 +70,10 @@ export default function UmkmPage() {
   }, [user?.id]);
 
   const loadData = useCallback(async () => {
-    const res = await api.get('/umkm', { params: categoryFilter ? { category: categoryFilter } : undefined });
+    const params: Record<string, string> = {};
+    if (categoryFilter) params.category = categoryFilter;
+    if (kabupatenFilter) params.kabupaten = kabupatenFilter;
+    const res = await api.get('/umkm', { params: Object.keys(params).length ? params : undefined });
     const newItems = res.data;
     const nextRatingStates: Record<string, { score: number; comment: string; submitting: boolean; submitted: boolean }> = {};
     newItems.forEach((item: any) => {
@@ -78,11 +85,34 @@ export default function UmkmPage() {
     });
     setItems(newItems);
     setRatingStates((current) => ({ ...current, ...nextRatingStates }));
-  }, [categoryFilter]);
+  }, [categoryFilter, kabupatenFilter]);
+
+  useEffect(() => {
+    const kabupatenFromUrl = searchParams.get('kabupaten') || '';
+    setKabupatenFilter(kabupatenFromUrl);
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (kabupatenFilter) {
+      params.set('kabupaten', kabupatenFilter);
+    } else {
+      params.delete('kabupaten');
+    }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [kabupatenFilter, router, searchParams]);
+
+  const filteredItems = useMemo(() => {
+    return items
+      .slice()
+      .sort((a, b) => (a.status === 'SELESAI' ? 1 : 0) - (b.status === 'SELESAI' ? 1 : 0))
+      .filter((item) => !categoryFilter || item.category === categoryFilter)
+      .filter((item) => !kabupatenFilter || item.kabupatenKota === kabupatenFilter);
+  }, [items, categoryFilter, kabupatenFilter]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -251,11 +281,13 @@ export default function UmkmPage() {
             ))}
           </select>
         </div>
-        {items
-          .slice()
-          .sort((a, b) => (a.status === 'SELESAI' ? 1 : 0) - (b.status === 'SELESAI' ? 1 : 0))
-          .filter((item) => !categoryFilter || item.category === categoryFilter)
-          .map((item) => (
+        <div className="mt-2 flex items-center gap-2">
+          <KabupatenFilter value={kabupatenFilter} onChange={setKabupatenFilter} />
+        </div>
+        {filteredItems.length === 0 && (
+          <p className="mt-3 font-body text-sm text-stone-500">{kabupatenFilter ? 'Belum ada data untuk kabupaten ini.' : 'Belum ada kebutuhan UMKM.'}</p>
+        )}
+        {filteredItems.map((item) => (
           <div key={item.id} className={`rounded-xl bg-white p-5 shadow-sm${item.status === 'SELESAI' ? ' guyub-stripes' : ''}`}>
             <div className="flex items-start justify-between">
               <div>

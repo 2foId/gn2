@@ -7,6 +7,7 @@ import { BantuanStatus, KesediaanStatus, PreferensiRelawan, Prisma, SkillCategor
 import { UsersService } from '../users/users.service';
 import { CreateJamKontribusiDto } from './dto/create-jam-kontribusi.dto';
 import { KonfirmasiJamKontribusiDto } from './dto/konfirmasi-jam-kontribusi.dto';
+import { KABUPATEN_DAFTAR } from '../sorotan/sorotan.config';
 
 @Injectable()
 export class BantuanService {
@@ -57,12 +58,23 @@ export class BantuanService {
     }
   }
 
+  private isValidKabupaten(kabupaten?: string) {
+    if (kabupaten === undefined || kabupaten === '') return;
+    if (!KABUPATEN_DAFTAR.includes(kabupaten as any)) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
+  }
+
   // Peta publik menampilkan semua permintaan kecuali yang masih menunggu verifikasi.
-  findAllForMap(preferensi?: PreferensiRelawan) {
+  findAllForMap(preferensi?: PreferensiRelawan, kabupaten?: string) {
     this.isValidPreferensi(preferensi);
-    const where = {
+    this.isValidKabupaten(kabupaten);
+    const where: Record<string, unknown> = {
       status: { not: BantuanStatus.MENUNGGU_VERIFIKASI },
     };
+    if (kabupaten) {
+      where.kabupatenKota = kabupaten;
+    }
 
     return this.prisma.bantuanRequest.findMany({
       where,

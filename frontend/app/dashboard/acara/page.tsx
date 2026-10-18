@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
+import { KabupatenFilter } from '@/components/KabupatenFilter';
 
 interface Logistik {
   id: string;
@@ -44,15 +46,39 @@ export default function AcaraPage() {
     waktuMulai: '',
     targetHadir: '1',
   });
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [kabupatenFilter, setKabupatenFilter] = useState<string>('');
 
   const loadData = useCallback(async () => {
-    const res = await api.get('/acara');
+    const params: Record<string, string> = {};
+    if (kabupatenFilter) params.kabupaten = kabupatenFilter;
+    const res = await api.get('/acara', { params: Object.keys(params).length ? params : undefined });
     setItems(res.data);
-  }, []);
+  }, [kabupatenFilter]);
+
+  useEffect(() => {
+    const kabupatenFromUrl = searchParams.get('kabupaten') || '';
+    setKabupatenFilter(kabupatenFromUrl);
+  }, [searchParams]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (kabupatenFilter) {
+      params.set('kabupaten', kabupatenFilter);
+    } else {
+      params.delete('kabupaten');
+    }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [kabupatenFilter, router, searchParams]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => !kabupatenFilter || true);
+  }, [items, kabupatenFilter]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -209,163 +235,175 @@ export default function AcaraPage() {
       )}
 
       <div className="mt-6 space-y-4">
-        {items.map((item) => {
-          const isCreator = item.pembuat.id === user?.id;
-          const sudahAbsen = item.absensi?.some((a) => a.user.id === user?.id);
-          const attendedCount = item.absensi?.length ?? item._count?.absensi ?? 0;
-          const target = item.targetHadir ?? 1;
-          const tidakHadir = Math.max(0, target - attendedCount);
-          return (
-            <div key={item.id} className="rounded-xl bg-white p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="font-body text-xs uppercase tracking-wide text-guyub-tanah">
-                    {item.jenis}
-                  </span>
-                  <p className="font-display font-semibold text-guyub-bambuDark">{item.nama}</p>
-                  <UserIdentity user={item.pembuat} />
-                  <p className="font-body text-sm text-stone-600">{item.deskripsi}</p>
-                  <p className="mt-1 font-body text-xs text-stone-500">
-                    {new Date(item.waktuMulai).toLocaleString('id-ID')} · {item.lokasi}
-                  </p>
-                  <p className="mt-1 font-body text-xs text-stone-600">
-                    Hadir {attendedCount}/{target}
-                    {tidakHadir > 0 && <span className="ml-1 font-medium text-guyub-merahBata">· {tidakHadir} belum hadir</span>}
-                  </p>
-                  {isCreator && (
-                    <div className="mt-2">
-                      {item.kodeAbsen ? (
-                        <p className="font-body text-xs text-stone-600">
-                          Kode absen: <strong className="font-mono tracking-widest">{item.kodeAbsen}</strong>
-                        </p>
-                      ) : (
-                        <button
-                          onClick={() => handleGenerateCode(item.id)}
-                          className="rounded-full bg-guyub-gula px-3 py-1 font-body text-xs font-medium text-guyub-bambuDark hover:brightness-95"
-                        >
-                          Generate access code
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <div className="shrink-0 text-right">
-                  {isCreator ? (
-                    <span className="inline-block rounded-full bg-guyub-krem px-4 py-1.5 font-body text-xs font-medium text-stone-600">
-                      Penyelenggara · Hadir
+        <div className="mt-2 flex items-center gap-2">
+          <KabupatenFilter value={kabupatenFilter} onChange={setKabupatenFilter} />
+        </div>
+        {(() => {
+          const displayItems = filteredItems.length === 0 ? [] : filteredItems;
+          if (kabupatenFilter && displayItems.length === 0) {
+            return <p className="mt-3 font-body text-sm text-stone-500">Belum ada data untuk kabupaten ini.</p>;
+          }
+          if (!kabupatenFilter && displayItems.length === 0) {
+            return <p className="mt-3 font-body text-sm text-stone-500">Belum ada acara.</p>;
+          }
+          return displayItems.map((item) => {
+            const isCreator = item.pembuat.id === user?.id;
+            const sudahAbsen = item.absensi?.some((a) => a.user.id === user?.id);
+            const attendedCount = item.absensi?.length ?? item._count?.absensi ?? 0;
+            const target = item.targetHadir ?? 1;
+            const tidakHadir = Math.max(0, target - attendedCount);
+            return (
+              <div key={item.id} className="rounded-xl bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="font-body text-xs uppercase tracking-wide text-guyub-tanah">
+                      {item.jenis}
                     </span>
-                  ) : sudahAbsen ? (
-                    <span className="inline-block rounded-full bg-guyub-krem px-4 py-1.5 font-body text-xs font-medium text-stone-600">
-                      Sudah Absen
-                    </span>
-                  ) : (
-                    <div className="flex flex-col items-end gap-1">
-                      <input
-                        value={codes[item.id] ?? ''}
-                        onChange={(e) => setCodes((prev) => ({ ...prev, [item.id]: e.target.value }))}
-                        placeholder="Kode absen"
-                        maxLength={4}
-                        className="w-28 rounded-lg border border-stone-300 px-3 py-1.5 text-center font-body text-xs"
-                      />
-                      <button
-                        onClick={() => handleAbsen(item.id)}
-                        className="rounded-full bg-guyub-gula px-4 py-1.5 font-body text-xs font-medium text-guyub-bambuDark hover:brightness-95"
-                      >
-                        Absen Hadir
-                      </button>
-                    </div>
-                  )}
-                  {absenErrors[item.id] && <p className="mt-1 font-body text-[11px] text-guyub-merahBata">{absenErrors[item.id]}</p>}
-                </div>
-              </div>
-
-              <button
-                onClick={() => toggleExpand(item)}
-                className="mt-3 font-body text-sm font-medium text-guyub-bambuDark underline"
-              >
-                {expanded === item.id
-                  ? 'Sembunyikan detail'
-                  : `Lihat logistik (${item.logistik?.length ?? item._count?.logistik ?? 0}) & absensi (${attendedCount})`}
-              </button>
-
-              {expanded === item.id && (
-                <div className="mt-4 grid gap-4 border-t border-stone-100 pt-4 md:grid-cols-2">
-                  <div>
-                    <h4 className="font-body text-sm font-semibold text-stone-700">
-                      Daftar Logistik
-                    </h4>
-                    <div className="mt-2 space-y-2">
-                      {item.logistik?.map((l) => (
-                        <div
-                          key={l.id}
-                          className="flex items-center justify-between rounded-lg bg-guyub-krem px-3 py-2"
-                        >
-                          <div>
-                            <p className="font-body text-sm text-stone-800">
-                              {l.itemNama} × {l.jumlah}
-                            </p>
-                            {l.penanggungJawab && (
-                              <p className="font-body text-xs text-stone-500">
-                                PJ: {l.penanggungJawab}
-                              </p>
-                            )}
-                          </div>
+                    <p className="font-display font-semibold text-guyub-bambuDark">{item.nama}</p>
+                    <UserIdentity user={item.pembuat} />
+                    <p className="font-body text-sm text-stone-600">{item.deskripsi}</p>
+                    <p className="mt-1 font-body text-xs text-stone-500">
+                      {new Date(item.waktuMulai).toLocaleString('id-ID')} · {item.lokasi}
+                    </p>
+                    <p className="mt-1 font-body text-xs text-stone-600">
+                      Hadir {attendedCount}/{target}
+                      {tidakHadir > 0 && <span className="ml-1 font-medium text-guyub-merahBata">· {tidakHadir} belum hadir</span>}
+                    </p>
+                    {isCreator && (
+                      <div className="mt-2">
+                        {item.kodeAbsen ? (
+                          <p className="font-body text-xs text-stone-600">
+                            Kode absen: <strong className="font-mono tracking-widest">{item.kodeAbsen}</strong>
+                          </p>
+                        ) : (
                           <button
-                            onClick={() => toggleLogistik(l.id, item.id)}
-                            className={`rounded-full px-3 py-1 font-body text-xs font-medium ${l.dipenuhi
+                            onClick={() => handleGenerateCode(item.id)}
+                            className="rounded-full bg-guyub-gula px-3 py-1 font-body text-xs font-medium text-guyub-bambuDark hover:brightness-95"
+                          >
+                            Generate access code
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    {isCreator ? (
+                      <span className="inline-block rounded-full bg-guyub-krem px-4 py-1.5 font-body text-xs font-medium text-stone-600">
+                        Penyelenggara · Hadir
+                      </span>
+                    ) : sudahAbsen ? (
+                      <span className="inline-block rounded-full bg-guyub-krem px-4 py-1.5 font-body text-xs font-medium text-stone-600">
+                        Sudah Absen
+                      </span>
+                    ) : (
+                      <div className="flex flex-col items-end gap-1">
+                        <input
+                          value={codes[item.id] ?? ''}
+                          onChange={(e) => setCodes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                          placeholder="Kode absen"
+                          maxLength={4}
+                          className="w-28 rounded-lg border border-stone-300 px-3 py-1.5 text-center font-body text-xs"
+                        />
+                        <button
+                          onClick={() => handleAbsen(item.id)}
+                          className="rounded-full bg-guyub-gula px-4 py-1.5 font-body text-xs font-medium text-guyub-bambuDark hover:brightness-95"
+                        >
+                          Absen Hadir
+                        </button>
+                      </div>
+                    )}
+                    {absenErrors[item.id] && <p className="mt-1 font-body text-[11px] text-guyub-merahBata">{absenErrors[item.id]}</p>}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => toggleExpand(item)}
+                  className="mt-3 font-body text-sm font-medium text-guyub-bambuDark underline"
+                >
+                  {expanded === item.id
+                    ? 'Sembunyikan detail'
+                    : `Lihat logistik (${item.logistik?.length ?? item._count?.logistik ?? 0}) & absensi (${attendedCount})`}
+                </button>
+
+                {expanded === item.id && (
+                  <div className="mt-4 grid gap-4 border-t border-stone-100 pt-4 md:grid-cols-2">
+                    <div>
+                      <h4 className="font-body text-sm font-semibold text-stone-700">
+                        Daftar Logistik
+                      </h4>
+                      <div className="mt-2 space-y-2">
+                        {item.logistik?.map((l) => (
+                          <div
+                            key={l.id}
+                            className="flex items-center justify-between rounded-lg bg-guyub-krem px-3 py-2"
+                          >
+                            <div>
+                              <p className="font-body text-sm text-stone-800">
+                                {l.itemNama} × {l.jumlah}
+                              </p>
+                              {l.penanggungJawab && (
+                                <p className="font-body text-xs text-stone-500">
+                                  PJ: {l.penanggungJawab}
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => toggleLogistik(l.id, item.id)}
+                              className={`rounded-full px-3 py-1 font-body text-xs font-medium ${l.dipenuhi
                                 ? 'bg-guyub-bambuDark text-white'
                                 : 'border border-stone-300 text-stone-500'
                               }`}
-                          >
-                            {l.dipenuhi ? 'Terpenuhi' : 'Belum'}
-                          </button>
-                        </div>
-                      ))}
+                            >
+                              {l.dipenuhi ? 'Terpenuhi' : 'Belum'}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <input
+                          value={logistikForm.itemNama}
+                          onChange={(e) => setLogistikForm({ ...logistikForm, itemNama: e.target.value })}
+                          placeholder="Nama item"
+                          className="flex-1 rounded-lg border border-stone-300 px-3 py-1.5 font-body text-xs"
+                        />
+                        <input
+                          type="number"
+                          min={1}
+                          value={logistikForm.jumlah}
+                          onChange={(e) => setLogistikForm({ ...logistikForm, jumlah: e.target.value })}
+                          className="w-16 rounded-lg border border-stone-300 px-3 py-1.5 font-body text-xs"
+                        />
+                        <button
+                          onClick={() => handleAddLogistik(item.id)}
+                          className="rounded-full bg-guyub-bambuDark px-4 py-1.5 font-body text-xs text-white"
+                        >
+                          Tambah
+                        </button>
+                      </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <input
-                        value={logistikForm.itemNama}
-                        onChange={(e) => setLogistikForm({ ...logistikForm, itemNama: e.target.value })}
-                        placeholder="Nama item"
-                        className="flex-1 rounded-lg border border-stone-300 px-3 py-1.5 font-body text-xs"
-                      />
-                      <input
-                        type="number"
-                        min={1}
-                        value={logistikForm.jumlah}
-                        onChange={(e) => setLogistikForm({ ...logistikForm, jumlah: e.target.value })}
-                        className="w-16 rounded-lg border border-stone-300 px-3 py-1.5 font-body text-xs"
-                      />
-                      <button
-                        onClick={() => handleAddLogistik(item.id)}
-                        className="rounded-full bg-guyub-bambuDark px-4 py-1.5 font-body text-xs text-white"
-                      >
-                        Tambah
-                      </button>
-                    </div>
-                  </div>
 
-                  <div>
-                    <h4 className="font-body text-sm font-semibold text-stone-700">
-                      Absensi Digital
-                    </h4>
-                    <div className="mt-2 space-y-1">
-                      {item.absensi?.length === 0 || !item.absensi ? (
-                        <p className="font-body text-xs text-stone-500">Belum ada yang absen.</p>
-                      ) : (
-                        item.absensi.map((a) => (
-                          <p key={a.id} className="font-body text-sm text-stone-700">
-                            ✓ <UserIdentity user={a.user} />
-                          </p>
-                        ))
-                      )}
+                    <div>
+                      <h4 className="font-body text-sm font-semibold text-stone-700">
+                        Absensi Digital
+                      </h4>
+                      <div className="mt-2 space-y-1">
+                        {item.absensi?.length === 0 || !item.absensi ? (
+                          <p className="font-body text-xs text-stone-500">Belum ada yang absen.</p>
+                        ) : (
+                          item.absensi.map((a) => (
+                            <p key={a.id} className="font-body text-sm text-stone-700">
+                              ✓ <UserIdentity user={a.user} />
+                            </p>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );

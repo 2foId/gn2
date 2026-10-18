@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { AcaraService } from './acara.service';
 import { CreateAcaraDto } from './dto/create-acara.dto';
 import { CreateLogistikDto } from './dto/create-logistik.dto';
@@ -16,8 +16,8 @@ export class AcaraController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PENGGERAK)
   @Get()
-  findAll() {
-    return this.acaraService.findAll();
+  findAll(@Query('kabupaten') kabupaten?: string) {
+    return this.acaraService.findAll(kabupaten);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

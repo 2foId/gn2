@@ -4,6 +4,7 @@ import { CreateUmkmNeedDto } from './dto/create-umkm-need.dto';
 import { UmkmNeedStatus, SkillCategory, Role } from '@prisma/client';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto/create-portfolio.dto';
 import { CreateUmkmRatingDto } from './dto/create-rating.dto';
+import { KABUPATEN_DAFTAR } from '../sorotan/sorotan.config';
 
 @Injectable()
 export class UmkmService {
@@ -21,11 +22,15 @@ export class UmkmService {
     });
   }
 
-  findAll(status?: UmkmNeedStatus, category?: SkillCategory) {
+  findAll(status?: UmkmNeedStatus, category?: SkillCategory, kabupaten?: string) {
+    if (kabupaten !== undefined && kabupaten !== '' && !KABUPATEN_DAFTAR.includes(kabupaten as any)) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
     return this.prisma.umkmNeed.findMany({
       where: {
         ...(status ? { status } : {}),
         ...(category ? { category } : {}),
+        ...(kabupaten ? { kabupatenKota: kabupaten } : {}),
       },
       include: {
         pemilik: { select: { id: true, nama: true, avatarUrl: true } },

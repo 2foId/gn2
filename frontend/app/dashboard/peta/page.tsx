@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { format, isValid, parseISO } from 'date-fns';
 import { id } from 'date-fns/locale';
 import { api } from '@/lib/api';
@@ -10,6 +11,7 @@ import type { MapPin } from '@/components/MapView';
 import { UserAvatar, UserIdentity } from '@/components/UserIdentity';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { KabupatenSelect } from '@/components/KabupatenSelect';
+import { KabupatenFilter } from '@/components/KabupatenFilter';
 
 // Leaflet butuh window/document, jadi di-load hanya di client (tidak di-SSR)
 const MapView = dynamic(() => import('@/components/MapView').then((m) => m.MapView), {
@@ -41,6 +43,7 @@ function getKategoriLabel(value: string) {
 interface BantuanItem extends MapPin {
   deskripsi: string;
   alamat?: string;
+  kabupatenKota?: string | null;
   _count?: { kesediaanBantu: number };
   pembuat: { id: string; nama: string; avatarUrl?: string | null };
   preferensiRelawan: string;
@@ -83,6 +86,9 @@ export default function PetaPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'AKTIF' | 'INAKTIF'>('AKTIF');
   const [preferensiFilter, setPreferensiFilter] = useState<'SEMUA' | 'PEMUDA_18_30' | 'BERPENGALAMAN'>('SEMUA');
+  const [kabupatenFilter, setKabupatenFilter] = useState<string>('');
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [deleteBantuanId, setDeleteBantuanId] = useState<string | null>(null);
   const [confirmBantuId, setConfirmBantuId] = useState<string | null>(null);
   const [confirmBatalId, setConfirmBatalId] = useState<string | null>(null);
@@ -128,7 +134,7 @@ export default function PetaPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { preferensi: preferensiFilter };
+      const params = { preferensi: preferensiFilter, ...(kabupatenFilter ? { kabupaten: kabupatenFilter } : {}) };
       const petaRes = await api.get('/bantuan/peta', { params });
       const petaItems = petaRes.data as BantuanItem[];
       setPins(petaItems);
@@ -160,7 +166,22 @@ export default function PetaPage() {
     } finally {
       setLoading(false);
     }
-  }, [isVerifikator, preferensiFilter, user?.id]);
+  }, [isVerifikator, preferensiFilter, kabupatenFilter, user?.id]);
+
+  useEffect(() => {
+    const kabupatenFromUrl = searchParams.get('kabupaten') || '';
+    setKabupatenFilter(kabupatenFromUrl);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (kabupatenFilter) {
+      params.set('kabupaten', kabupatenFilter);
+    } else {
+      params.delete('kabupaten');
+    }
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [kabupatenFilter, router, searchParams]);
 
   useEffect(() => {
     loadData();
@@ -579,12 +600,22 @@ export default function PetaPage() {
               Inaktif
             </button>
           </div>
+          <div className="mt-2 flex items-center gap-2">
+            <KabupatenFilter value={kabupatenFilter} onChange={setKabupatenFilter} />
+          </div>
         </div>
         {loading ? (
           <p className="mt-3 font-body text-sm text-stone-500">Memuat…</p>
         ) : (() => {
-          const filtered = pins.filter((item) => filter === 'AKTIF' ? ['AKTIF', 'DIPROSES'].includes(item.status) : ['SELESAI', 'DITOLAK'].includes(item.status));
+          const filtered = pins.filter((item) => {
+            const statusMatch = filter === 'AKTIF' ? ['AKTIF', 'DIPROSES'].includes(item.status) : ['SELESAI', 'DITOLAK'].includes(item.status);
+            const kabupatenMatch = !kabupatenFilter || item.kabupatenKota === kabupatenFilter;
+            return statusMatch && kabupatenMatch;
+          });
           if (filtered.length === 0) {
+            if (kabupatenFilter) {
+              return <p className="mt-3 font-body text-sm text-stone-500">Belum ada permintaan di kabupaten ini.</p>;
+            }
             return <p className="mt-3 font-body text-sm text-stone-500">{filter === 'AKTIF' ? 'Belum ada kebutuhan aktif.' : 'Belum ada kebutuhan inaktif.'}</p>;
           }
           return (

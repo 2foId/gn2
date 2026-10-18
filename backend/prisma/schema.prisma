@@ -552,6 +552,7 @@ model Acara {
   kodeQrExpiresAt DateTime?
   targetHadir  Int     @default(1)
   kodeAbsen    String?
+  kabupatenKota String?
   pembuatId    String
   pembuat      User     @relation("AcaraPembuat", fields: [pembuatId], references: [id])
   createdAt    DateTime @default(now())

@@ -17,8 +17,8 @@ export class UmkmController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.PENGGERAK)
   @Get()
-  findAll(@Query('status') status?: UmkmNeedStatus, @Query('category') category?: SkillCategory) {
-    return this.umkmService.findAll(status, category);
+  findAll(@Query('status') status?: UmkmNeedStatus, @Query('category') category?: SkillCategory, @Query('kabupaten') kabupaten?: string) {
+    return this.umkmService.findAll(status, category, kabupaten);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

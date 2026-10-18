@@ -3,12 +3,14 @@ import { randomInt, randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAcaraDto } from './dto/create-acara.dto';
 import { CreateLogistikDto } from './dto/create-logistik.dto';
+import { KABUPATEN_DAFTAR } from '../sorotan/sorotan.config';
 
 @Injectable()
 export class AcaraService {
   constructor(private prisma: PrismaService) { }
 
   async create(userId: string, dto: CreateAcaraDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
     const acara = await this.prisma.acara.create({
       data: {
         nama: dto.nama,
@@ -19,6 +21,7 @@ export class AcaraService {
         waktuSelesai: dto.waktuSelesai ? new Date(dto.waktuSelesai) : undefined,
         foto: dto.foto,
         pembuatId: userId,
+        kabupatenKota: user?.kabupatenKota ?? null,
         targetHadir: dto.targetHadir ?? 1,
       },
     });
@@ -29,8 +32,14 @@ export class AcaraService {
     return acara;
   }
 
-  findAll() {
+  findAll(kabupaten?: string) {
+    if (kabupaten !== undefined && kabupaten !== '' && !KABUPATEN_DAFTAR.includes(kabupaten as any)) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
     return this.prisma.acara.findMany({
+      where: {
+        ...(kabupaten ? { pembuat: { kabupatenKota: kabupaten } } : {}),
+      },
       include: {
         pembuat: { select: { id: true, nama: true, avatarUrl: true } },
         _count: { select: { logistik: true, absensi: true } },
