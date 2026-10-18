@@ -1,5 +1,8 @@
 import { Controller, Get, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Role } from '@prisma/client';
 
 const libraryLinks = [
   {
@@ -26,7 +29,8 @@ const libraryLinks = [
 
 @Controller('library')
 export class LibraryController {
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PELAJAR, Role.ADMIN)
   @Get('links')
   getLinks() {
     return libraryLinks;

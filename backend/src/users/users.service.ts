@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role, ThemePreference } from '@prisma/client';
+import { ThemePreference } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { hitungLevel } from './level';
@@ -107,19 +107,22 @@ export class UsersService {
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto) {
+    const { role: ignoredRole, ...profileFields } = dto as UpdateProfileDto & { role?: unknown };
+    void ignoredRole;
+
     const currentUser = await this.prisma.user.findUnique({
       where: { id },
       select: { role: true },
     });
     if (!currentUser) throw new NotFoundException('Profil tidak ditemukan');
 
-    const role = dto.role ?? currentUser.role;
+    const role = currentUser.role;
     if (role === 'PELAJAR' && dto.phone !== undefined) {
       throw new BadRequestException('Nomor WhatsApp hanya untuk Penggerak.');
     }
 
     const payload = {
-      ...dto,
+      ...profileFields,
       phone: role === 'PELAJAR'
         ? null
         : dto.phone === undefined
@@ -164,7 +167,7 @@ export class UsersService {
       },
     });
     if (result.count !== 1) {
-      throw new BadRequestException('Onboarding sudah diselesaikan. Ubah peran melalui profil.');
+      throw new BadRequestException('Peran sudah dikunci setelah onboarding selesai.');
     }
     return this.findMyProfile(id);
   }
@@ -236,10 +239,6 @@ export class UsersService {
       where: { id },
       data: { emailVerifiedAt: new Date() },
     });
-  }
-
-  updateRole(id: string, role: Role) {
-    return this.prisma.user.update({ where: { id }, data: { role } });
   }
 
   // Hanya dipakai Admin: daftar seluruh akun untuk kelola Penggerak.

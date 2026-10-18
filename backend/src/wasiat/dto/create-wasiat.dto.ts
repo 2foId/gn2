@@ -44,6 +44,7 @@ class CreateWasiatQuestDto {
 export class CreateWasiatDto {
   @IsString()
   @MinLength(4)
+  @MaxLength(20, { message: 'Judul maksimal 20 karakter.' })
   judul: string;
 
   @IsEnum(WasiatKategori)
