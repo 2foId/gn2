@@ -123,6 +123,9 @@ model User {
   tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
   kabupatenKota String?
+  bingkaiAktifId String?
+  bingkaiAktif  BingkaiProfil?  @relation("UserBingkaiAktif", fields: [bingkaiAktifId], references: [id])
+  bingkaiDimiliki KepemilikanBingkai[]
   portfolios    UmkmPortfolio[]
   ratingsFrom   UmkmRating[] @relation("RatingFrom")
   ratingsTo     UmkmRating[] @relation("RatingTo")
@@ -151,6 +154,32 @@ model User {
   libraryNotes      LibraryNote[]
 
   @@map("users")
+}
+
+model BingkaiProfil {
+  id        String   @id @default(uuid())
+  kode      String   @unique
+  nama      String   @db.VarChar(40)
+  harga     Int
+  gaya      String
+  createdAt DateTime @default(now())
+
+  pengguna   KepemilikanBingkai[]
+  userAktif  User[] @relation("UserBingkaiAktif")
+
+  @@map("bingkai_profil")
+}
+
+model KepemilikanBingkai {
+  id         String        @id @default(uuid())
+  userId     String
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bingkaiId  String
+  bingkai    BingkaiProfil @relation(fields: [bingkaiId], references: [id])
+  dibeliAt   DateTime      @default(now())
+
+  @@unique([userId, bingkaiId])
+  @@map("kepemilikan_bingkai")
 }
 
 model RefreshToken {

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useAuthStore, type Role } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
+import { BingkaiStore } from '@/components/BingkaiStore';
 
 const roleMenus: Record<Role, { href: string; label: string }[]> = {
   PELAJAR: [
@@ -36,6 +37,9 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const [currency, setCurrency] = useState(0);
+  const [bingkaiStoreOpen, setBingkaiStoreOpen] = useState(false);
+  const [bingkaiGaya, setBingkaiGaya] = useState<string | null>(null);
+  const updateUser = useAuthStore((s) => s.updateUser);
   const visibleMenu = user ? roleMenus[user.role] : [];
 
   useEffect(() => {
@@ -44,12 +48,24 @@ export function Navbar() {
       return;
     }
     let active = true;
-    const loadCurrency = () => {
-      api.get('/users/me/level').then((response) => {
-        if (active) setCurrency(response.data.currency ?? 0);
-      }).catch(() => {
+    const loadCurrency = async () => {
+      try {
+        const [levelRes, bingkaiRes] = await Promise.all([
+          api.get('/users/me/level'),
+          api.get('/bingkai'),
+        ]);
+        if (active) {
+          setCurrency(levelRes.data.currency ?? 0);
+          const items = bingkaiRes.data.items;
+          const activeBingkai = items.find((b: any) => b.dipasang);
+          if (activeBingkai && activeBingkai.gaya !== bingkaiGaya) {
+            setBingkaiGaya(activeBingkai.gaya);
+            updateUser({ bingkaiGaya: activeBingkai.gaya });
+          }
+        }
+      } catch {
         if (active) setCurrency(0);
-      });
+      }
     };
     loadCurrency();
     window.addEventListener('guyub:level-updated', loadCurrency);
@@ -118,15 +134,18 @@ export function Navbar() {
             </svg>
           </button>
           <button type="button" onClick={() => user && window.dispatchEvent(new CustomEvent('guyub:open-profile', { detail: { userId: user.id } }))} className="flex items-center gap-2 text-right">
-            {user && <UserAvatar user={user} size="sm" />}
-            {user && <span className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />{currency.toLocaleString('id-ID')}</span>}
-            <div>
-              <p className="font-body text-sm font-medium text-stone-800 hover:underline">{user?.nama}</p>
-              <p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">
-                {user?.role === 'ADMIN' ? 'Admin' : user?.role === 'PENGGERAK' ? 'Penggerak' : 'Pelajar'}
-              </p>
-            </div>
+            {user && <UserAvatar user={{ ...user, bingkaiGaya }} size="sm" />}
+            {user && (
+              <>
+                <button type="button" onClick={() => setBingkaiStoreOpen(true)} aria-label="Buka toko bingkai" className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />{currency.toLocaleString('id-ID')}</button>
+                <div>
+                  <p className="font-body text-sm font-medium text-stone-800 hover:underline">{user?.nama}</p>
+                  <p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">{user?.role === 'ADMIN' ? 'Admin' : user?.role === 'PENGGERAK' ? 'Penggerak' : 'Pelajar'}</p>
+                </div>
+              </>
+            )}
           </button>
+          {user && <BingkaiStore isOpen={bingkaiStoreOpen} onClose={() => setBingkaiStoreOpen(false)} />}
           <button
             onClick={handleLogout}
             className="rounded-full border border-stone-300 px-4 py-2 font-body text-sm font-medium text-stone-600 transition hover:border-guyub-merahBata hover:text-guyub-merahBata"

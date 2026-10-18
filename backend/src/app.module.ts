@@ -14,6 +14,7 @@ import { UploadsModule } from './uploads/uploads.module';
 import { DampakModule } from './dampak/dampak.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LibraryModule } from './library/library.module';
+import { BingkaiModule } from './bingkai/bingkai.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { LibraryModule } from './library/library.module';
     UploadsModule,
     DampakModule,
     LibraryModule,
+    BingkaiModule,
     ScheduleModule.forRoot(),
   ],
   providers: [

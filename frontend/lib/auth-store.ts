@@ -29,6 +29,9 @@ export interface AuthUser {
   kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
   themePreference?: ThemePreference;
   kontak?: string | null;
+  bingkaiAktif?: string | null;
+  bingkaiDimiliki?: string[];
+  bingkaiGaya?: string | null;
 }
 
 interface AuthState {

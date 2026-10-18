@@ -102,6 +102,10 @@ export class UsersService {
         themePreference: true,
         kabupatenKota: true,
         createdAt: true,
+        bingkaiAktifId: true,
+        bingkaiDimiliki: {
+          include: { bingkai: true },
+        },
       },
     });
     return user ? { ...user, kategoriUsia: this.kategoriUsia(user.tanggalLahir) } : null;

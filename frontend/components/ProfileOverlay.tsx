@@ -24,6 +24,8 @@ interface Profile {
     kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
     themePreference?: ThemePreference;
     createdAt: string;
+    bingkaiAktifId?: string | null;
+    bingkaiDimiliki?: Array<{ id: string; kode: string; nama: string; gaya: string; bingkaiId?: string }>;
   }
 
 interface ProfileNote {
@@ -66,6 +68,7 @@ export function ProfileOverlay() {
     const [portfolioLoading, setPortfolioLoading] = useState(false);
     const [ratings, setRatings] = useState<{ avgScore: number; jumlahUlasan: number; ulasan: any[] } | null>(null);
     const [ratingsLoading, setRatingsLoading] = useState(false);
+    const [bingkaiInventory, setBingkaiInventory] = useState<Array<{ id: string; kode: string; nama: string; gaya: string; dimiliki: boolean; dipasang: boolean }> | null>(null);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -76,8 +79,15 @@ export function ProfileOverlay() {
             if (userId === currentUser?.id) {
                 const levelResponse = await api.get('/users/me/level');
                 setLevelInfo(levelResponse.data);
+                try {
+                    const bingkaiResponse = await api.get('/bingkai');
+                    setBingkaiInventory(bingkaiResponse.data.items);
+                } catch {
+                    setBingkaiInventory(null);
+                }
             } else {
                 setLevelInfo(null);
+                setBingkaiInventory(null);
             }
             setEditing(false);
             setError(null);
@@ -149,6 +159,20 @@ export function ProfileOverlay() {
         }
     }
 
+    async function toggleBingkai(bingkaiId: string | null) {
+        try {
+            const res = await api.patch('/users/me/bingkai', { bingkaiId: bingkaiId });
+            const profileRes = await api.get('/users/me/profile');
+            setProfile(profileRes.data);
+            updateUser({ bingkaiAktif: profileRes.data.bingkaiAktifId });
+            const bingkaiRes = await api.get('/bingkai');
+            setBingkaiInventory(bingkaiRes.data.items);
+        } catch (err: any) {
+            const message = err.response?.data?.message;
+            setError(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal mengubah bingkai.');
+        }
+    }
+
     async function copySummary(portfolio: any) {
         const text = [
             `Judul: ${portfolio.title}`,
@@ -211,7 +235,7 @@ export function ProfileOverlay() {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 px-4 py-4 sm:items-center sm:px-6" role="dialog" aria-modal="true" onClick={() => setProfile(null)}>
             <section className="w-full max-w-5xl min-w-0 rounded-2xl border border-guyub-gula bg-white p-6 shadow-sm" onClick={(event) => event.stopPropagation()}>
                 <div className="flex items-center gap-4">
-                    <UserAvatar user={profile} size="lg" />
+                    <UserAvatar user={{ ...profile, bingkaiGaya: bingkaiInventory?.find((b) => b.id === profile.bingkaiAktifId)?.gaya ?? null }} size="lg" />
                     <div><h2 className="flex items-center gap-2 font-display text-2xl font-semibold text-guyub-bambuDark">{profile.nama}<img src="/logo.png" alt="Logo" className="h-5 w-5" /></h2>{profile.kategoriUsia === 'PEMUDA_18_30' && <span className="mt-1 inline-flex rounded-full bg-guyub-gula px-3 py-1 font-body text-xs font-semibold text-guyub-bambuDark">Pemuda 18–30</span>}<p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">{profile.role}</p></div>
                 </div>
                 <div className="mt-5 grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
@@ -232,6 +256,30 @@ export function ProfileOverlay() {
                         <button type="button" aria-label="Gunakan tema gelap" aria-pressed={currentUser?.themePreference === 'DARK'} onClick={() => void changeTheme('DARK')} className={`rounded-full p-2 transition duration-200 ${currentUser?.themePreference === 'DARK' ? 'bg-guyub-gula' : ''}`}><img src="/icons/bulan.svg" alt="" className={`h-5 w-5 ${currentUser?.themePreference === 'DARK' ? '' : 'dark:brightness-0 dark:invert'}`} /></button>
                     </div>
                     {themeError && <p role="alert" className="mt-2 font-body text-sm text-guyub-merahBata">{themeError}</p>}
+                </div>}
+                {isMine && <div className="mt-4">
+                    <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Tampilan profil</p>
+                    {bingkaiInventory ? bingkaiInventory.length === 0 ? (
+                        <p className="font-body text-sm text-stone-500">Belum ada bingkai. Buka toko dari badge currency di navbar.</p>
+                    ) : (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {bingkaiInventory.map((b) => (
+                                <button
+                                    key={b.id}
+                                    type="button"
+                                    onClick={() => toggleBingkai(b.dipasang ? null : b.id)}
+                                    className={`flex flex-col items-center gap-1 rounded-lg border px-3 py-2 font-body text-xs transition ${b.dipasang ? 'bg-guyub-gula border-guyub-gula text-guyub-bambuDark' : 'border-stone-200 bg-white text-stone-600 hover:bg-guyub-krem'}`}
+                                >
+                                    <div className={`w-8 h-8 rounded-full ${b.dipasang ? 'border-guyub-gula' : 'border-stone-300'} border flex items-center justify-center mb-1`}>
+                                        <span className="text-[10px]">{b.nama.charAt(0).toUpperCase()}</span>
+                                    </div>
+                                    <span className="leading-none">{b.dipasang ? 'Pasang' : 'Pasang'}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="font-body text-sm text-stone-500">Memuat bingkai…</p>
+                    )}
                 </div>}
                 {isMine && levelInfo && <div className="mt-4 rounded-2xl bg-guyub-krem p-4">
                     <div className="flex items-center gap-1" aria-label={`XP ${levelInfo.persen}% menuju level berikutnya`}>
