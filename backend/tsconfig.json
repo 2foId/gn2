@@ -1,5 +1,8 @@
 {
-  "compilerOptions": {
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "prisma", "test"],
+
+  "compilerOptions": {  
     "module": "commonjs",
     "declaration": true,
     "removeComments": true,
@@ -11,12 +14,14 @@
     "outDir": "./dist",
     "baseUrl": "./",
     "ignoreDeprecations": "5.0",
-    "incremental": true,
+    "incremental": false,
     "skipLibCheck": true,
     "strictNullChecks": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": true,
+    "rootDir": "./src",
     "noFallthroughCasesInSwitch": false
+    
   }
 }
