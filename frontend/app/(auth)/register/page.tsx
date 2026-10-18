@@ -22,7 +22,7 @@ export default function RegisterPage() {
         password: form.password,
         dusun: form.dusun,
       });
-      router.push('/verify-email');
+      router.push(`/check-email?email=${encodeURIComponent(form.email)}`);
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Registrasi gagal, coba lagi');
     } finally {

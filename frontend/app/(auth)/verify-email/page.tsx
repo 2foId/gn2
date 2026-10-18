@@ -1,34 +1,37 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 
 export default function VerifyEmailPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get('token') ?? '';
+  const token = searchParams.get('token');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const hasRequested = useRef(false);
 
   useEffect(() => {
     if (!token) {
       setStatus('error');
-      setMessage('Token verifikasi tidak ditemukan.');
+      setMessage('Link verifikasi tidak lengkap. Buka tautan dari email terbaru.');
       return;
     }
-    async function verify() {
+    if (hasRequested.current) return;
+    hasRequested.current = true;
+
+    async function verify(verificationToken: string) {
       try {
-        const res = await api.get(`/auth/verify-email?token=${token}`);
+        const res = await api.get(`/auth/verify-email?token=${encodeURIComponent(verificationToken)}`);
         setStatus('success');
-        setMessage(res.data.message ?? 'Email berhasil diverifikasi.');
+        setMessage('Email kamu sudah terverifikasi. Silakan masuk.');
       } catch (err: any) {
         setStatus('error');
         setMessage(err.response?.data?.message ?? 'Verifikasi gagal.');
       }
     }
-    void verify();
+    void verify(token);
   }, [token]);
 
   return (
@@ -50,9 +53,6 @@ export default function VerifyEmailPage() {
           {status === 'success' && (
             <>
               <p className="font-body text-sm text-guyub-bambuDark font-medium">{message}</p>
-              <p className="mt-4 font-body text-sm text-stone-500">
-                Kamu sekarang bisa masuk ke akun kamu.
-              </p>
               <Link
                 href="/login"
                 className="mt-6 inline-block rounded-full bg-guyub-bambuDark px-6 py-2 font-body font-medium text-white transition hover:bg-guyub-bambu"
@@ -65,10 +65,10 @@ export default function VerifyEmailPage() {
             <>
               <p className="font-body text-sm text-guyub-merahBata">{message}</p>
               <Link
-                href="/register"
+                href="/check-email"
                 className="mt-6 inline-block rounded-full border border-stone-300 px-6 py-2 font-body font-medium text-stone-600 transition hover:bg-stone-50"
               >
-                Daftar ulang
+                Kirim ulang email verifikasi
               </Link>
             </>
           )}

@@ -52,6 +52,12 @@ export class AuthController {
     return this.authService.register(dto);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
+  @Post('resend-verification')
+  async resendVerification(@Body() dto: ForgotPasswordDto) {
+    return this.authService.resendVerification(dto);
+  }
+
   @Get('verify-email')
   async verifyEmail(@Query('token') token: string) {
     return this.authService.verifyEmail(token);

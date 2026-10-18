@@ -102,34 +102,94 @@ export class AuthService {
   }
 
   // ---------- VERIFIKASI EMAIL ----------
+  async resendVerification(dto: ForgotPasswordDto) {
+    const message = 'Jika email belum terverifikasi, tautan verifikasi telah dikirim.';
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user || user.emailVerifiedAt) {
+      return { message };
+    }
+
+    const { raw, hash } = generateToken();
+    await this.prisma.emailToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hash,
+        purpose: 'VERIFY_EMAIL',
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      },
+    });
+    await this.mailService.sendVerification(user.email, raw);
+    return { message };
+  }
+
   async verifyEmail(token: string) {
+    if (!token?.trim()) {
+      throw new BadRequestException('Token tidak ditemukan.');
+    }
+
     const tokenHash = hashToken(token);
-    const emailToken = await this.prisma.emailToken.findUnique({
-      where: { tokenHash },
-      include: { user: true },
+    return this.prisma.$transaction(async (tx) => {
+      const emailToken = await tx.emailToken.findUnique({
+        where: { tokenHash },
+        include: { user: true },
+      });
+
+      if (!emailToken || emailToken.purpose !== 'VERIFY_EMAIL') {
+        throw new BadRequestException('Token verifikasi tidak valid.');
+      }
+
+      if (emailToken.user.emailVerifiedAt) {
+        return {
+          status: 'ALREADY_VERIFIED',
+          message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+        };
+      }
+
+      if (emailToken.expiresAt <= new Date()) {
+        throw new BadRequestException('Token verifikasi sudah kedaluwarsa.');
+      }
+      if (emailToken.usedAt) {
+        throw new BadRequestException('Token verifikasi sudah digunakan. Minta tautan baru.');
+      }
+
+      const now = new Date();
+      const claimed = await tx.emailToken.updateMany({
+        where: {
+          id: emailToken.id,
+          purpose: 'VERIFY_EMAIL',
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { usedAt: now },
+      });
+
+      if (claimed.count !== 1) {
+        const currentToken = await tx.emailToken.findUnique({
+          where: { id: emailToken.id },
+          include: { user: true },
+        });
+        if (currentToken?.user.emailVerifiedAt) {
+          return {
+            status: 'ALREADY_VERIFIED',
+            message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+          };
+        }
+        if (currentToken && currentToken.expiresAt <= new Date()) {
+          throw new BadRequestException('Token verifikasi sudah kedaluwarsa.');
+        }
+        throw new BadRequestException('Token verifikasi sudah digunakan. Minta tautan baru.');
+      }
+
+      await tx.user.update({
+        where: { id: emailToken.userId },
+        data: { emailVerifiedAt: now },
+      });
+
+      return {
+        status: 'VERIFIED',
+        message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+      };
     });
-
-    if (!emailToken) {
-      throw new BadRequestException('Token verifikasi tidak valid.');
-    }
-    if (emailToken.purpose !== 'VERIFY_EMAIL') {
-      throw new BadRequestException('Token verifikasi tidak valid.');
-    }
-    if (emailToken.usedAt) {
-      throw new BadRequestException('Token verifikasi sudah digunakan.');
-    }
-    if (emailToken.expiresAt < new Date()) {
-      throw new BadRequestException('Token verifikasi sudah kedaluwarsa.');
-    }
-
-    await this.prisma.emailToken.update({
-      where: { id: emailToken.id },
-      data: { usedAt: new Date() },
-    });
-
-    await this.usersService.verifyEmail(emailToken.userId);
-
-    return { message: 'Email berhasil diverifikasi. Silakan login.' };
   }
 
   // ---------- LOGIN ----------
