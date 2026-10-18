@@ -15,6 +15,7 @@ import { DampakModule } from './dampak/dampak.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { LibraryModule } from './library/library.module';
 import { BingkaiModule } from './bingkai/bingkai.module';
+import { SorotanModule } from './sorotan/sorotan.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { BingkaiModule } from './bingkai/bingkai.module';
     DampakModule,
     LibraryModule,
     BingkaiModule,
+    SorotanModule,
     ScheduleModule.forRoot(),
   ],
   providers: [

@@ -7,6 +7,7 @@ import { UserAvatar } from '@/components/UserIdentity';
 import { SkillChip, skillLabel } from '@/components/SkillChip';
 import { WhatsAppButton } from '@/components/WhatsAppButton';
 import { emptyProfileEditValues, ProfileEditForm, type ProfileEditValues } from '@/components/ProfileEditForm';
+import { SlotSorotan } from '@/components/SlotSorotan';
 import type { ThemePreference } from '@/lib/auth-store';
 
 interface Profile {
@@ -69,6 +70,15 @@ export function ProfileOverlay() {
     const [ratings, setRatings] = useState<{ avgScore: number; jumlahUlasan: number; ulasan: any[] } | null>(null);
     const [ratingsLoading, setRatingsLoading] = useState(false);
     const [bingkaiInventory, setBingkaiInventory] = useState<Array<{ id: string; kode: string; nama: string; gaya: string; dimiliki: boolean; dipasang: boolean }> | null>(null);
+    const [myIklan, setMyIklan] = useState<Array<{ id: string; judul: string; deskripsi: string; bidang: string; kabupatenKota: string; fotoUrl: string | null; status: string; mulaiAt: string | null; berakhirAt: string | null; jumlahRevisi: number; dibuatAt: string }> | null>(null);
+    const [iklanLoading, setIklanLoading] = useState(false);
+    const [draftForm, setDraftForm] = useState({ judul: '', deskripsi: '', bidang: '', kabupatenKota: '' });
+    const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
+    const [previewTheme, setPreviewTheme] = useState<'LIGHT' | 'DARK'>('LIGHT');
+    const [showPreview, setShowPreview] = useState(false);
+    const [iklanMessage, setIklanMessage] = useState<string | null>(null);
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+    const [iklanActionLoading, setIklanActionLoading] = useState(false);
 
     useEffect(() => {
         async function openProfile(event: Event) {
@@ -85,9 +95,15 @@ export function ProfileOverlay() {
                 } catch {
                     setBingkaiInventory(null);
                 }
+                try {
+                    await loadMyIklan();
+                } catch {
+                    setMyIklan(null);
+                }
             } else {
                 setLevelInfo(null);
                 setBingkaiInventory(null);
+                setMyIklan(null);
             }
             setEditing(false);
             setError(null);
@@ -170,6 +186,79 @@ export function ProfileOverlay() {
         } catch (err: any) {
             const message = err.response?.data?.message;
             setError(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal mengubah bingkai.');
+        }
+    }
+
+    async function loadMyIklan() {
+        if (!isMine) return;
+        setIklanLoading(true);
+        try {
+            const res = await api.get('/iklan/saya');
+            setMyIklan(Array.isArray(res.data) ? res.data : []);
+        } catch {
+            setMyIklan(null);
+        } finally {
+            setIklanLoading(false);
+        }
+    }
+
+    function handleDraftChange(field: string, value: string) {
+        setDraftForm((prev) => ({ ...prev, [field]: value }));
+        setDraftErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+
+    function validateDraft(): boolean {
+        const errors: Record<string, string> = {};
+        const { judul, deskripsi, bidang, kabupatenKota } = draftForm;
+        if (!judul.trim()) errors.judul = 'Judul wajib diisi.';
+        else if (judul.trim().length > 40) errors.judul = 'Judul maksimal 40 karakter.';
+        if (!deskripsi.trim()) errors.deskripsi = 'Deskripsi wajib diisi.';
+        else if (deskripsi.trim().length > 140) errors.deskripsi = 'Deskripsi maksimal 140 karakter.';
+        if (!bidang) errors.bidang = 'Bidang wajib dipilih.';
+        if (!kabupatenKota) errors.kabupatenKota = 'Kabupaten/Kota wajib dipilih.';
+        setDraftErrors(errors);
+        return Object.keys(errors).length === 0;
+    }
+
+    async function simpanDraf() {
+        if (!validateDraft()) return;
+        setIklanActionLoading(true);
+        setIklanMessage(null);
+        try {
+            await api.post('/iklan', draftForm);
+            setDraftForm({ judul: '', deskripsi: '', bidang: '', kabupatenKota: '' });
+            setShowPreview(false);
+            await loadMyIklan();
+            setIklanMessage('Disimpan.');
+        } catch (err: any) {
+            const message = err.response?.data?.message;
+            setIklanMessage(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal menyimpan draf.');
+        } finally {
+            setIklanActionLoading(false);
+        }
+    }
+
+    async function ajukanIklan() {
+        if (!validateDraft()) return;
+        const aktif = myIklan?.some((i) => i.status === 'MENUNGGU' || i.status === 'DISETUJUI');
+        if (aktif) {
+            setShowConfirmDialog(true);
+            return;
+        }
+        setIklanActionLoading(true);
+        setIklanMessage(null);
+        try {
+            const res = await api.post('/iklan', draftForm);
+            await api.post(`/iklan/${res.data.id}/ajukan`);
+            setDraftForm({ judul: '', deskripsi: '', bidang: '', kabupatenKota: '' });
+            setShowPreview(false);
+            await loadMyIklan();
+            setIklanMessage('Diajukan. Sedang ditinjau. Belum tayang.');
+        } catch (err: any) {
+            const message = err.response?.data?.message;
+            setIklanMessage(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal mengajukan.');
+        } finally {
+            setIklanActionLoading(false);
         }
     }
 
@@ -279,6 +368,206 @@ export function ProfileOverlay() {
                         </div>
                     ) : (
                         <p className="font-body text-sm text-stone-500">Memuat bingkai…</p>
+                    )}
+                </div>}
+                {isMine && <div className="mt-4">
+                    <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Iklan Saya</p>
+                    {myIklan === null ? (
+                        <p className="font-body text-sm text-stone-500">Memuat iklan…</p>
+                    ) : (
+                        <>
+                            {myIklan.length === 0 && (
+                                <p className="font-body text-sm text-stone-500">Belum ada iklan. Buat draf iklan kartu penggerak di bawah.</p>
+                            )}
+                            {myIklan.length > 0 && (
+                                <div className="mt-2 space-y-2">
+                                    {myIklan.map((iklan) => {
+                                        const aktif = iklan.status === 'MENUNGGU' || iklan.status === 'DISETUJUI';
+                                        return (
+                                            <div key={iklan.id} className="rounded-lg border border-stone-200 p-3 bg-white">
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className="font-body text-xs font-semibold text-stone-800 line-clamp-1">{iklan.judul}</span>
+                                                    <span className={`font-body text-xs font-bold px-2 py-0.5 rounded ${aktif ? 'bg-guyub-gula/10 text-guyub-bambuDark' : 'bg-stone-100 text-stone-500'}`}>
+                                                        {iklan.status === 'MENUNGGU' ? 'Meninjau' : iklan.status === 'DISETUJUI' ? 'Disetujui' : iklan.status === 'DITOLAK' ? 'Ditolak' : iklan.status === 'DITARIK' ? 'Ditarik' : iklan.status === 'BERAKHIR' ? 'Berakhir' : 'Draf'}
+                                                    </span>
+                                                </div>
+                                                <p className="font-body text-xs text-stone-600 line-clamp-1">{iklan.deskripsi}</p>
+                                                <p className="mt-1 font-body text-xs text-stone-500">{iklan.bidang} · {iklan.kabupatenKota}</p>
+                                                {aktif && (
+                                                    <p className="mt-1 font-body text-xs text-guyub-bambuDark font-medium">Iklan aktif. Tidak dapat membuat iklan baru sampai iklan ini berakhir atau ditarik.</p>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+                                <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Buat Draf Iklan</p>
+                                <div className="space-y-2">
+                                    <div>
+                                        <label className="font-body text-xs text-stone-600 block mb-1">Judul (maks 40 karakter)</label>
+                                        <input
+                                            type="text"
+                                            value={draftForm.judul}
+                                            onChange={(e) => handleDraftChange('judul', e.target.value)}
+                                            className={`w-full rounded-lg border px-3 py-2 font-body text-sm ${draftErrors.judul ? 'border-guyub-merahBata' : 'border-stone-300'} focus:border-guyub-bambuDark focus:ring-1 focus:ring-guyub-bambuDark`}
+                                            placeholder="Judul iklan"
+                                        />
+                                        {draftErrors.judul && <p className="mt-1 font-body text-xs text-guyub-merahBata">{draftErrors.judul}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="font-body text-xs text-stone-600 block mb-1">Deskripsi (maks 140 karakter)</label>
+                                        <textarea
+                                            value={draftForm.deskripsi}
+                                            onChange={(e) => handleDraftChange('deskripsi', e.target.value)}
+                                            rows={3}
+                                            className={`w-full rounded-lg border px-3 py-2 font-body text-sm ${draftErrors.deskripsi ? 'border-guyub-merahBata' : 'border-stone-300'} focus:border-guyub-bambuDark focus:ring-1 focus:ring-guyub-bambuDark`}
+                                            placeholder="Deskripsi iklan"
+                                        />
+                                        <p className="mt-1 font-body text-xs text-stone-500 text-right">{draftForm.deskripsi.length}/140</p>
+                                        {draftErrors.deskripsi && <p className="mt-1 font-body text-xs text-guyub-merahBata">{draftErrors.deskripsi}</p>}
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="font-body text-xs text-stone-600 block mb-1">Bidang</label>
+                                            <select
+                                                value={draftForm.bidang}
+                                                onChange={(e) => handleDraftChange('bidang', e.target.value)}
+                                                className="w-full rounded-lg border border-stone-300 px-3 py-2 font-body text-sm focus:border-guyub-bambuDark focus:ring-1 focus:ring-guyub-bambuDark"
+                                            >
+                                                <option value="">Pilih bidang</option>
+                                                <option value="Kesehatan">Kesehatan</option>
+                                                <option value="Pendidikan">Pendidikan</option>
+                                                <option value="Ekonomi">Ekonomi</option>
+                                                <option value="Lingkungan">Lingkungan</option>
+                                                <option value="Sosial">Sosial</option>
+                                                <option value="Teknologi">Teknologi</option>
+                                                <option value="Budaya">Budaya</option>
+                                            </select>
+                                            {draftErrors.bidang && <p className="mt-1 font-body text-xs text-guyub-merahBata">{draftErrors.bidang}</p>}
+                                        </div>
+                                        <div>
+                                            <label className="font-body text-xs text-stone-600 block mb-1">Kabupaten/Kota</label>
+                                            <select
+                                                value={draftForm.kabupatenKota}
+                                                onChange={(e) => handleDraftChange('kabupatenKota', e.target.value)}
+                                                className="w-full rounded-lg border border-stone-300 px-3 py-2 font-body text-sm focus:border-guyub-bambuDark focus:ring-1 focus:ring-guyub-bambuDark"
+                                            >
+                                                <option value="">Pilih kabupaten</option>
+                                                <option value="Cilacap">Cilacap</option>
+                                                <option value="Banyumas">Banyumas</option>
+                                                <option value="Purbalingga">Purbalingga</option>
+                                                <option value="Banjarnegara">Banjarnegara</option>
+                                                <option value="Kebumen">Kebumen</option>
+                                                <option value="Purworejo">Purworejo</option>
+                                                <option value="Wonosobo">Wonosobo</option>
+                                                <option value="Magelang">Magelang</option>
+                                                <option value="Boyolali">Boyolali</option>
+                                                <option value="Klaten">Klaten</option>
+                                                <option value="Sukoharjo">Sukoharjo</option>
+                                                <option value="Wonogiri">Wonogiri</option>
+                                                <option value="Karanganyar">Karanganyar</option>
+                                                <option value="Sragen">Sragen</option>
+                                                <option value="Grobogan">Grobogan</option>
+                                                <option value="Blora">Blora</option>
+                                                <option value="Rembang">Rembang</option>
+                                                <option value="Pati">Pati</option>
+                                                <option value="Kudus">Kudus</option>
+                                                <option value="Jepara">Jepara</option>
+                                                <option value="Demak">Demak</option>
+                                                <option value="Semarang">Semarang</option>
+                                                <option value="Temanggung">Temanggung</option>
+                                                <option value="Kendal">Kendal</option>
+                                                <option value="Batang">Batang</option>
+                                                <option value="Pekalongan">Pekalongan</option>
+                                                <option value="Pemalang">Pemalang</option>
+                                                <option value="Tegal">Tegal</option>
+                                                <option value="Brebes">Brebes</option>
+                                                <option value="Kota Magelang">Kota Magelang</option>
+                                                <option value="Kota Surakarta">Kota Surakarta</option>
+                                                <option value="Kota Salatiga">Kota Salatiga</option>
+                                                <option value="Kota Semarang">Kota Semarang</option>
+                                                <option value="Kota Pekalongan">Kota Pekalongan</option>
+                                                <option value="Kota Tegal">Kota Tegal</option>
+                                            </select>
+                                            {draftErrors.kabupatenKota && <p className="mt-1 font-body text-xs text-guyub-merahBata">{draftErrors.kabupatenKota}</p>}
+                                        </div>
+                                    </div>
+                                    <div className="mt-2">
+                                        <button
+                                            type="button"
+                                            onClick={simpanDraf}
+                                            disabled={iklanActionLoading}
+                                            className="w-full rounded-full border border-stone-300 px-4 py-2 font-body text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {iklanActionLoading ? 'Menyimpan…' : 'Simpan Draf'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowPreview(true); }}
+                                            disabled={iklanActionLoading || Object.keys(draftErrors).length > 0}
+                                            className="w-full rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            Pratinjau
+                                        </button>
+                                    </div>
+                                    {iklanMessage && <p className="mt-2 font-body text-sm text-guyub-bambuDark">{iklanMessage}</p>}
+                                </div>
+                            </div>
+                            {showPreview && (
+                                <div className="mt-4 rounded-xl border border-stone-200 bg-white p-4">
+                                    <p className="mb-2 font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah">Pratinjau</p>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className="font-body text-xs text-stone-600">Tema:</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewTheme('LIGHT')}
+                                            className={`rounded-full px-3 py-1 font-body text-xs transition ${previewTheme === 'LIGHT' ? 'bg-guyub-gula text-guyub-bambuDark' : 'bg-stone-200 text-stone-600'}`}
+                                        >
+                                            Terang
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setPreviewTheme('DARK')}
+                                            className={`rounded-full px-3 py-1 font-body text-xs transition ${previewTheme === 'DARK' ? 'bg-guyub-gula text-guyub-bambuDark' : 'bg-stone-200 text-stone-600'}`}
+                                        >
+                                            Gelap
+                                        </button>
+                                    </div>
+                                    <div className={`w-[320px] rounded-xl border border-stone-200 overflow-hidden shadow-sm ${previewTheme === 'DARK' ? 'bg-stone-900' : 'bg-white'}`}>
+                                        <div className="flex items-center justify-between px-3 py-2 bg-guyub-krem">
+                                            <span className="font-body text-xs font-semibold uppercase tracking-wide text-guyub-bambuDark">Sorotan</span>
+                                        </div>
+                                        <div className="p-3">
+                                            <h3 className={`font-display text-sm font-semibold line-clamp-1 ${previewTheme === 'DARK' ? 'text-white' : 'text-guyub-bambuDark'}`}>{draftForm.judul}</h3>
+                                            <p className={`mt-1 font-body text-xs line-clamp-2 ${previewTheme === 'DARK' ? 'text-stone-300' : 'text-stone-600'}`}>{draftForm.deskripsi}</p>
+                                            <div className="mt-2 flex items-center gap-1">
+                                                <span className={`font-body text-xs ${previewTheme === 'DARK' ? 'text-stone-400' : 'text-stone-500'}`}>{currentUser?.nama}</span>
+                                                <span className={`font-body text-xs ${previewTheme === 'DARK' ? 'text-stone-500' : 'text-stone-400'}`}>·</span>
+                                                <span className={`font-body text-xs ${previewTheme === 'DARK' ? 'text-stone-400' : 'text-stone-500'}`}>{draftForm.kabupatenKota}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={ajukanIklan}
+                                            disabled={iklanActionLoading || Object.keys(draftErrors).length > 0 || myIklan?.some((i) => i.status === 'MENUNGGU' || i.status === 'DISETUJUI')}
+                                            className={`flex-1 rounded-full ${iklanActionLoading || Object.keys(draftErrors).length > 0 || myIklan?.some((i) => i.status === 'MENUNGGU' || i.status === 'DISETUJUI') ? 'bg-stone-200 text-stone-400 cursor-not-allowed' : 'bg-guyub-bambuDark text-white hover:bg-guyub-bambuDark/90'} px-4 py-2 font-body text-sm font-medium disabled:opacity-50`}
+                                        >
+                                            {iklanActionLoading ? 'Mengajukan…' : myIklan?.some((i) => i.status === 'MENUNGGU' || i.status === 'DISETUJUI') ? 'Iklan Aktif' : 'Ajukan'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPreview(false)}
+                                            className="rounded-full border border-stone-300 px-4 py-2 font-body text-sm text-stone-700 hover:bg-stone-50"
+                                        >
+                                            Tutup
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>}
                 {isMine && levelInfo && <div className="mt-4 rounded-2xl bg-guyub-krem p-4">

@@ -94,6 +94,27 @@ enum LocalRegionStatus {
   SEGERA_HADIR
 }
 
+enum IklanStatus {
+  DRAFT
+  MENUNGGU
+  DISETUJUI
+  DITOLAK
+  DITARIK
+  BERAKHIR
+}
+
+enum IklanKeputusan {
+  SETUJUI
+  TOLAK
+  REVISI
+  TARIK
+}
+
+enum TransaksiIklanTipe {
+  BELI
+  KEMBALI
+}
+
 // =========================================
 // USER & AUTH
 // =========================================
@@ -137,6 +158,8 @@ model User {
   bantuanRequests   BantuanRequest[]        @relation("BantuanPembuat")
   bantuanVerifikasi BantuanRequest[]        @relation("BantuanVerifikator")
   jamKontribusi     JamKontribusi[]         @relation("JamKontribusiPenggerak")
+  iklan             Iklan[]
+  moderasiIklan     ModerasiIklan[]
   kesediaanBantu    KesediaanBantu[]
   wasiatList        Wasiat[]
   wasiatSaved       WasiatSaved[]
@@ -588,15 +611,85 @@ model AcaraPeserta {
 // =========================================
 
 model Message {
-  id         String   @id @default(uuid())
+  id         String   @id
   senderId   String
-  sender     User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
   receiverId String
-  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
   isi        String
   createdAt  DateTime @default(now())
 
   @@index([receiverId, senderId])
   @@index([senderId, receiverId])
   @@map("messages")
+}
+
+model Iklan {
+  id           String     @id @default(uuid())
+  pemilikId    String
+  pemilik      User       @relation(fields: [pemilikId], references: [id], onDelete: Cascade)
+  judul        String     @db.VarChar(40)
+  deskripsi    String     @db.VarChar(140)
+  bidang       String
+  kabupatenKota String
+  fotoUrl      String?
+  status       IklanStatus @default(DRAFT)
+  alasanTolak  String?
+  catatanRevisi String?
+  jumlahRevisi Int        @default(0)
+  mulaiAt      DateTime?
+  berakhirAt   DateTime?
+  kuotaHarian  Int        @default(100)
+  dibuatAt     DateTime   @default(now())
+  diperbaruiAt DateTime   @updatedAt
+
+  tayangan     TayanganIklan[]
+  transaksi    LogTransaksiIklan[]
+  moderasi     ModerasiIklan[]
+
+  @@index([pemilikId, status])
+  @@index([status, mulaiAt, berakhirAt])
+  @@map("iklan")
+}
+
+model TayanganIklan {
+  id        String   @id @default(uuid())
+  iklanId   String
+  iklan     Iklan    @relation(fields: [iklanId], references: [id], onDelete: Cascade)
+  tanggal   DateTime
+  tayang    Int      @default(0)
+  klik      Int      @default(0)
+
+  @@unique([iklanId, tanggal])
+  @@index([tanggal])
+  @@map("tayangan_iklan")
+}
+
+model LogTransaksiIklan {
+  id        String   @id @default(uuid())
+  iklanId   String
+  iklan     Iklan    @relation(fields: [iklanId], references: [id], onDelete: Cascade)
+  pemilikId String
+  jumlah    Int
+  tipe      TransaksiIklanTipe
+  createdAt DateTime @default(now())
+
+  @@index([iklanId])
+  @@index([pemilikId])
+  @@map("log_transaksi_iklan")
+}
+
+model ModerasiIklan {
+  id        String   @id @default(uuid())
+  iklanId   String
+  iklan     Iklan    @relation(fields: [iklanId], references: [id], onDelete: Cascade)
+  adminId   String
+  admin     User     @relation(fields: [adminId], references: [id])
+  keputusan IklanKeputusan
+  alasan    String?
+  createdAt DateTime @default(now())
+
+  @@index([iklanId])
+  @@index([adminId])
+  @@map("moderasi_iklan")
 }

@@ -7,6 +7,7 @@ import { Navbar } from '@/components/Navbar';
 import { ProfileOverlay } from '@/components/ProfileOverlay';
 import { MessageOverlay } from '@/components/MessageOverlay';
 import { PenggerakOnly } from '@/components/PenggerakOnly';
+import { SlotSorotan } from '@/components/SlotSorotan';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -38,12 +39,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Navbar />
       <ProfileOverlay />
       <MessageOverlay />
-      <div className="guyub-pattern flex-1">
+       <div className="guyub-pattern flex-1">
         <main className="mx-auto max-w-6xl px-6 py-8">
           {user.role === 'PELAJAR' && (pathname?.startsWith('/dashboard/umkm') || pathname?.startsWith('/dashboard/acara'))
             ? <PenggerakOnly />
             : children}
         </main>
+        {(user.role === 'PENGGERAK' || user.role === 'ADMIN') && !pathname?.startsWith('/dashboard/wasiat') && (
+          <div className="mx-auto max-w-6xl px-6 py-4 flex justify-end">
+            <SlotSorotan />
+          </div>
+        )}
       </div>
     </div>
   );
