@@ -279,7 +279,51 @@ async function main() {
     admin.id,
   );
 
+  const regionNames = [
+    'Cilacap', 'Banyumas', 'Purbalingga', 'Banjarnegara', 'Kebumen', 'Purworejo', 'Wonosobo', 'Magelang',
+    'Boyolali', 'Klaten', 'Sukoharjo', 'Wonogiri', 'Karanganyar', 'Sragen', 'Grobogan', 'Blora', 'Rembang',
+    'Pati', 'Kudus', 'Jepara', 'Demak', 'Semarang', 'Temanggung', 'Kendal', 'Batang', 'Pekalongan',
+    'Pemalang', 'Tegal', 'Brebes', 'Kota Magelang', 'Kota Surakarta', 'Kota Salatiga', 'Kota Semarang',
+    'Kota Pekalongan', 'Kota Tegal',
+  ];
+  const activeRegionSlugs = new Set(['purbalingga', 'banyumas', 'banjarnegara', 'cilacap', 'kota-semarang']);
+  for (const nama of regionNames) {
+    const slug = nama.toLocaleLowerCase('id-ID').replace(/\s+/g, '-');
+    const region = await prisma.localRegion.upsert({
+      where: { slug },
+      create: {
+        slug,
+        nama,
+        status: activeRegionSlugs.has(slug) ? 'AKTIF' : 'SEGERA_HADIR',
+        ringkasan: activeRegionSlugs.has(slug) ? 'Artikel kurasi untuk wilayah ini sedang disiapkan.' : null,
+        pertanyaanPemantik: null,
+      },
+      update: {
+        nama,
+        status: activeRegionSlugs.has(slug) ? 'AKTIF' : 'SEGERA_HADIR',
+      },
+    });
+
+    if (activeRegionSlugs.has(slug)) {
+      const draftTitle = `Draf artikel ${nama}`;
+      const existingDraft = await prisma.localArticle.findFirst({ where: { regionId: region.id, judul: draftTitle } });
+      if (!existingDraft) {
+        await prisma.localArticle.create({
+          data: {
+            regionId: region.id,
+            judul: draftTitle,
+            ringkasan: 'Draf, perlu diverifikasi admin. Isi ringkasan umum harus ditulis dan diverifikasi sebelum ditampilkan.',
+            sumber: 'Draf, perlu diverifikasi admin',
+            tautan: 'https://example.com/',
+            terverifikasi: false,
+          },
+        });
+      }
+    }
+  }
+
   console.log('Contoh kebutuhan UMKM dengan kategori berhasil dibuat.');
+  console.log('Seed daerah berisi draf artikel yang belum diverifikasi admin.');
   console.log(`Email: ${adminEmail}`);
   console.log('Password: AdminGuyub123');
 }

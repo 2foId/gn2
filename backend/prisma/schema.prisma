@@ -76,6 +76,17 @@ enum SkillCategory {
   LAINNYA
 }
 
+enum LocalLibraryCategory {
+  PERPUSTAKAAN_DAERAH
+  TAMAN_BACA
+  PUSAT_BELAJAR
+}
+
+enum LocalRegionStatus {
+  AKTIF
+  SEGERA_HADIR
+}
+
 // =========================================
 // USER & AUTH
 // =========================================
@@ -128,6 +139,7 @@ model User {
   messagesReceived  Message[]               @relation("MessageReceiver")
   notesWritten      ProfileNote[] @relation("NoteAuthor")
   notesReceived     ProfileNote[] @relation("NoteTarget")
+  libraryNotes      LibraryNote[]
 
   @@map("users")
 }
@@ -156,6 +168,65 @@ model ProfileNote {
 
   @@index([authorId, targetUserId])
   @@map("profile_notes")
+}
+
+model LibraryNote {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  judul     String   @db.VarChar(150)
+  penulis   String?  @db.VarChar(100)
+  tahun     Int?
+  penerbit  String?  @db.VarChar(100)
+  tautan    String?
+  catatan   String?  @db.VarChar(500)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("library_notes")
+}
+
+model LocalLibrary {
+  id           String              @id @default(uuid())
+  nama         String
+  kategori     LocalLibraryCategory
+  kabupatenKota String
+  alamat       String
+  jamBuka      String?
+  tautan       String?
+  createdAt    DateTime            @default(now())
+
+  @@index([kabupatenKota, kategori])
+  @@map("local_libraries")
+}
+
+model LocalRegion {
+  id                 String            @id @default(uuid())
+  slug               String            @unique
+  nama               String
+  status             LocalRegionStatus @default(SEGERA_HADIR)
+  ringkasan          String?
+  pertanyaanPemantik String?           @db.VarChar(300)
+  createdAt          DateTime          @default(now())
+  articles           LocalArticle[]
+
+  @@map("local_regions")
+}
+
+model LocalArticle {
+  id          String      @id @default(uuid())
+  regionId    String
+  region      LocalRegion @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  judul       String      @db.VarChar(150)
+  ringkasan   String      @db.VarChar(500)
+  sumber      String      @db.VarChar(120)
+  tautan      String
+  terverifikasi Boolean   @default(false)
+  createdAt   DateTime    @default(now())
+
+  @@index([regionId, terverifikasi, createdAt])
+  @@map("local_articles")
 }
 
 model EmailToken {
