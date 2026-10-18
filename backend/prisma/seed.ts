@@ -2,6 +2,7 @@ import { PrismaClient, Role, SkillCategory, WasiatKategori } from '@prisma/clien
 import * as bcrypt from 'bcrypt';
 import { hitungLevel, totalCurrencyUntukXp } from '../src/users/level';
 import { acakKuis, QuizQuestionWithAnswer } from '../src/wasiat/quiz-randomizer';
+import { LOCAL_REGION_NAMES, slugForRegion } from '../src/pustaka/regions';
 
 const prisma = new PrismaClient();
 
@@ -279,16 +280,9 @@ async function main() {
     admin.id,
   );
 
-  const regionNames = [
-    'Cilacap', 'Banyumas', 'Purbalingga', 'Banjarnegara', 'Kebumen', 'Purworejo', 'Wonosobo', 'Magelang',
-    'Boyolali', 'Klaten', 'Sukoharjo', 'Wonogiri', 'Karanganyar', 'Sragen', 'Grobogan', 'Blora', 'Rembang',
-    'Pati', 'Kudus', 'Jepara', 'Demak', 'Semarang', 'Temanggung', 'Kendal', 'Batang', 'Pekalongan',
-    'Pemalang', 'Tegal', 'Brebes', 'Kota Magelang', 'Kota Surakarta', 'Kota Salatiga', 'Kota Semarang',
-    'Kota Pekalongan', 'Kota Tegal',
-  ];
   const activeRegionSlugs = new Set(['purbalingga', 'banyumas', 'banjarnegara', 'cilacap', 'kota-semarang']);
-  for (const nama of regionNames) {
-    const slug = nama.toLocaleLowerCase('id-ID').replace(/\s+/g, '-');
+  for (const nama of LOCAL_REGION_NAMES) {
+    const slug = slugForRegion(nama);
     const region = await prisma.localRegion.upsert({
       where: { slug },
       create: {

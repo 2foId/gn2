@@ -1,14 +1,11 @@
-import { IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
 
 export class CreateCitationDto {
-  @IsOptional()
   @IsString()
-  noteId?: string;
-
-  @IsOptional()
-  @IsString()
+  @MinLength(1)
   @MaxLength(150)
-  judul?: string;
+  judul: string;
 
   @IsOptional()
   @IsString()
@@ -16,6 +13,7 @@ export class CreateCitationDto {
   penulis?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1900)
   @Max(new Date().getFullYear())
@@ -26,7 +24,4 @@ export class CreateCitationDto {
   @MaxLength(100)
   penerbit?: string;
 
-  @IsOptional()
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
-  tautan?: string;
 }

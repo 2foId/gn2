@@ -11,6 +11,7 @@ import { ALLOWED_NEWS_DOMAINS } from './allowed-domains';
 import { BLOCKED_TERMS } from './blocked-terms';
 import { NewsQueryDto } from './dto/news-query.dto';
 import { MOCK_NEWS, NewsItem } from './mock-berita';
+import { LOCAL_REGION_NAMES } from './regions';
 
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const SEARCH_LIMIT_PER_DAY = 30;
@@ -37,11 +38,17 @@ export class BeritaService {
 
   async search(userId: string, query: NewsQueryDto) {
     const q = (query.q ?? '').trim();
-    const kabupaten = (query.kabupaten ?? '').trim();
-    const searchText = [q, kabupaten, 'Jawa Tengah'].filter(Boolean).join(' ');
-    if (q.length > 80 || /[\u0000-\u001f\u007f]/.test(q) || /[\u0000-\u001f\u007f]/.test(kabupaten)) {
+    const requestedKabupaten = (query.kabupaten ?? '').trim();
+    if (q.length > 80 || /[\u0000-\u001f\u007f]/.test(q) || /[\u0000-\u001f\u007f]/.test(requestedKabupaten)) {
       throw new BadRequestException('Kata kunci tidak valid.');
     }
+    const kabupaten = requestedKabupaten
+      ? LOCAL_REGION_NAMES.find((name) => name.toLocaleLowerCase('id-ID') === requestedKabupaten.toLocaleLowerCase('id-ID'))
+      : undefined;
+    if (requestedKabupaten && !kabupaten) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
+    const searchText = [q, kabupaten, 'Jawa Tengah'].filter(Boolean).join(' ');
 
     const normalizedQuery = searchText.toLocaleLowerCase('id-ID');
     if (BLOCKED_TERMS.some((term) => normalizedQuery.includes(term))) {
@@ -59,7 +66,13 @@ export class BeritaService {
         return this.emptyResult('Berita belum tersedia.', halaman, false);
       }
       const start = (halaman - 1) * NEWS_PAGE_SIZE;
-      const mockItems = this.sortItems([...MOCK_NEWS], urutan).slice(start, start + NEWS_PAGE_SIZE);
+      const wilayah = kabupaten || 'Jawa Tengah';
+      const mockItems = this.sortItems(MOCK_NEWS.map((item, index) => ({
+        ...item,
+        title: `Data contoh ${index + 1}: ${wilayah}`,
+        snippet: `Berita fiktif untuk menguji pencarian ${q ? `"${q}" di ` : ''}${wilayah}. Bukan informasi faktual.`,
+        link: `https://example.com/berita-${index + 1}?wilayah=${encodeURIComponent(wilayah)}`,
+      })), urutan).slice(start, start + NEWS_PAGE_SIZE);
       return {
         items: mockItems,
         message: mockItems.length ? undefined : 'Tidak ada berita yang cocok.',

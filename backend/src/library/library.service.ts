@@ -49,19 +49,12 @@ export class LibraryService {
   }
 
   async createCitation(userId: string, dto: CreateCitationDto) {
-    const source = dto.noteId
-      ? await this.prisma.libraryNote.findFirst({ where: { id: dto.noteId, userId } })
-      : dto;
-    if (dto.noteId && !source) throw new NotFoundException('Catatan rujukan tidak ditemukan.');
-    if (!source?.judul?.trim()) throw new BadRequestException('Judul rujukan wajib diisi untuk membuat sitasi.');
-
-    const author = source.penulis?.trim() || '';
-    const year = source.tahun ? String(source.tahun) : '';
-    const title = source.judul.trim();
-    const publisher = source.penerbit?.trim() || '';
-    const url = source.tautan?.trim() || '';
-    const apa = `${author || 'n.d.'} (${year || 'n.d.'}). ${title}.${publisher ? ` ${publisher}.` : ''}${url ? ` ${url}` : ''}`;
-    const indonesia = `${author || 'Tanpa penulis'}. ${year || 'tanpa tahun'}. ${title}.${publisher ? ` ${publisher}.` : ''}${url ? ` ${url}` : ''}`;
+    const author = dto.penulis?.trim() || '';
+    const year = dto.tahun ? String(dto.tahun) : '';
+    const title = dto.judul.trim();
+    const publisher = dto.penerbit?.trim() || '';
+    const apa = `${author || 'n.d.'} (${year || 'n.d.'}). ${title}.${publisher ? ` ${publisher}.` : ''}`;
+    const indonesia = `${author || 'Tanpa penulis'}. ${year || 'tanpa tahun'}. ${title}.${publisher ? ` ${publisher}.` : ''}`;
     return { apa, indonesia };
   }
 

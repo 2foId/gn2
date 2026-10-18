@@ -4,16 +4,31 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useAuthStore } from '@/lib/auth-store';
+import { useAuthStore, type Role } from '@/lib/auth-store';
 import { UserAvatar } from '@/components/UserIdentity';
 
-const menu = [
-  { href: '/dashboard/peta', label: 'Peta Butuh Guyub' },
-  { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
-  { href: '/library', label: 'Pustaka' },
-  { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
-  { href: '/dashboard/acara', label: 'Guyub Acara' },
-];
+const roleMenus: Record<Role, { href: string; label: string }[]> = {
+  PELAJAR: [
+    { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
+    { href: '/dashboard/peta', label: 'Peta Butuh Guyub' },
+    { href: '/pustaka', label: 'Pustaka' },
+  ],
+  PENGGERAK: [
+    { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
+    { href: '/dashboard/peta', label: 'Peta Butuh Guyub' },
+    { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
+    { href: '/dashboard/acara', label: 'Guyub Acara' },
+    { href: '/dashboard/dampak', label: 'Dampak' },
+  ],
+  ADMIN: [
+    { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
+    { href: '/dashboard/peta', label: 'Peta Butuh Guyub' },
+    { href: '/pustaka', label: 'Pustaka' },
+    { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
+    { href: '/dashboard/acara', label: 'Guyub Acara' },
+    { href: '/dashboard/dampak', label: 'Dampak' },
+  ],
+};
 
 export function Navbar() {
   const pathname = usePathname();
@@ -21,9 +36,7 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const [currency, setCurrency] = useState(0);
-  const visibleMenu = user && (user.role === 'ADMIN' || user.role === 'PENGGERAK')
-    ? [...menu, { href: '/dashboard/dampak', label: 'Dampak' }]
-    : menu;
+  const visibleMenu = user ? roleMenus[user.role] : [];
 
   useEffect(() => {
     if (!user) {

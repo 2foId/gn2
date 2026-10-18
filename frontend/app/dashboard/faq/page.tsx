@@ -25,7 +25,7 @@ const FAQ_LIST: FaqItem[] = [
         kategori: 'Akun & Login',
         pertanyaan: 'Bagaimana cara akun saya menjadi Penggerak?',
         jawaban:
-            'Pilih peran Penggerak pada onboarding. Setelah onboarding, peran bisa diubah dari fitur yang meminta akses Penggerak.',
+            'Pilih peran Pelajar atau Penggerak saat onboarding. Peran tidak dapat diubah setelah onboarding selesai.',
     },
     {
         kategori: 'Peta Butuh Guyub',

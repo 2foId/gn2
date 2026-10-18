@@ -199,6 +199,10 @@ export default function WasiatPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (form.judul.length > 20) {
+      setError('Judul maksimal 20 karakter. Perbaiki judul sebelum membagikan wasiat.');
+      return;
+    }
     setError(null);
     try {
       const uploadedPhotos = await Promise.all(foto.map(async (file) => {
@@ -306,9 +310,12 @@ export default function WasiatPage() {
                 <input
                   required
                   value={form.judul}
+                  maxLength={20}
                   onChange={(e) => setForm({ ...form, judul: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body"
                 />
+                <p className={`mt-1 text-right font-body text-xs ${form.judul.length > 20 ? 'text-guyub-merahBata' : 'text-stone-500'}`}>{form.judul.length}/20</p>
+                {form.judul.length > 20 && <p role="alert" className="font-body text-sm text-guyub-merahBata">Judul melebihi 20 karakter. Perbaiki judul, tanpa pemotongan otomatis.</p>}
               </div>
               <div>
                 <label className="block font-body text-sm font-medium text-stone-700">Kategori</label>
@@ -388,7 +395,8 @@ export default function WasiatPage() {
             </section>
             <button
               type="submit"
-              className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95"
+              disabled={form.judul.length > 20}
+              className="rounded-full bg-guyub-gula px-6 py-2 font-body font-medium text-guyub-bambuDark hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               Bagikan Wasiat
             </button>

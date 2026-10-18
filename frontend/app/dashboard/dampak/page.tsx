@@ -52,7 +52,7 @@ export default function DampakPage() {
     const inFlightRef = useRef<Promise<void> | null>(null);
 
     async function load() {
-        if (!user || (user.role !== 'ADMIN' && user.role !== 'PENGGERAK')) {
+        if (!user || !['ADMIN', 'PENGGERAK', 'PELAJAR'].includes(user.role)) {
             setLoading(false);
             return;
         }
@@ -128,7 +128,7 @@ export default function DampakPage() {
 
     if (loading) return <p className="font-body text-sm text-stone-600">Memuat ringkasan dampak…</p>;
 
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'PENGGERAK')) {
+    if (!user || !['ADMIN', 'PENGGERAK', 'PELAJAR'].includes(user.role)) {
         return (
             <div className="rounded-2xl border-2 border-yellow-400 bg-white p-6 shadow-sm">
                 <h1 className="font-display text-2xl font-semibold text-guyub-bambuDark">Dampak</h1>
