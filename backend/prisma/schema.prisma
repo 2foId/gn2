@@ -30,6 +30,13 @@ enum BantuanStatus {
   DITOLAK
 }
 
+enum JamKontribusiStatus {
+  MENUNGGU
+  TERKONFIRMASI
+  DITOLAK
+  KEDALUWARSA
+}
+
 enum BantuanKategori {
   MEDIS
   KERUSAKAN_RUMAH
@@ -125,6 +132,7 @@ model User {
   emailTokens       EmailToken[]
   bantuanRequests   BantuanRequest[]        @relation("BantuanPembuat")
   bantuanVerifikasi BantuanRequest[]        @relation("BantuanVerifikator")
+  jamKontribusi     JamKontribusi[]         @relation("JamKontribusiPenggerak")
   kesediaanBantu    KesediaanBantu[]
   wasiatList        Wasiat[]
   wasiatSaved       WasiatSaved[]
@@ -272,6 +280,7 @@ model BantuanRequest {
   updatedAt     DateTime        @updatedAt
 
   kesediaanBantu KesediaanBantu[]
+  jamKontribusi JamKontribusi?
 
   @@map("bantuan_requests")
 }
@@ -289,6 +298,25 @@ model KesediaanBantu {
 
   @@unique([requestId, userId])
   @@map("kesediaan_bantu")
+}
+
+model JamKontribusi {
+  id                 String               @id @default(uuid())
+  bantuanId          String               @unique
+  bantuan            BantuanRequest       @relation(fields: [bantuanId], references: [id], onDelete: Cascade)
+  penggerakId        String
+  penggerak          User                 @relation("JamKontribusiPenggerak", fields: [penggerakId], references: [id])
+  jumlahJam          Decimal              @db.Decimal(4, 1)
+  catatan            String?              @db.VarChar(300)
+  status             JamKontribusiStatus  @default(MENUNGGU)
+  diajukanAt         DateTime             @default(now())
+  dikonfirmasiAt     DateTime?
+  batasKonfirmasiAt  DateTime
+  alasanTolak        String?              @db.VarChar(200)
+
+  @@index([penggerakId, status])
+  @@index([status, batasKonfirmasiAt])
+  @@map("jam_kontribusi")
 }
 
 // =========================================

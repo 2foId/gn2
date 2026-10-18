@@ -3,8 +3,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateBantuanDto } from './dto/create-bantuan.dto';
 import { UpdateBantuanDto } from './dto/update-bantuan.dto';
 import { BatalKesediaanDto } from './dto/batal-kesediaan.dto';
-import { BantuanStatus, KesediaanStatus, PreferensiRelawan, SkillCategory } from '@prisma/client';
+import { BantuanStatus, KesediaanStatus, PreferensiRelawan, Prisma, SkillCategory } from '@prisma/client';
 import { UsersService } from '../users/users.service';
+import { CreateJamKontribusiDto } from './dto/create-jam-kontribusi.dto';
+import { KonfirmasiJamKontribusiDto } from './dto/konfirmasi-jam-kontribusi.dto';
 
 @Injectable()
 export class BantuanService {
@@ -177,6 +179,133 @@ export class BantuanService {
       throw new BadRequestException('Permintaan ini sudah selesai/ditolak');
     }
     return this.prisma.bantuanRequest.update({ where: { id }, data: { status: BantuanStatus.SELESAI, selesaiAt: new Date() } });
+  }
+
+  async ajukanJamKontribusi(bantuanId: string, penggerakId: string, dto: CreateJamKontribusiDto) {
+    const bantuan = await this.prisma.bantuanRequest.findUnique({
+      where: { id: bantuanId },
+      select: { id: true, status: true, pembuatId: true, createdAt: true, dibutuhkanSebelum: true },
+    });
+    if (!bantuan) throw new NotFoundException('Permintaan bantuan tidak ditemukan.');
+    if (bantuan.status !== BantuanStatus.SELESAI) {
+      throw new BadRequestException('Jam hanya dapat diajukan untuk bantuan yang selesai.');
+    }
+    if (bantuan.pembuatId === penggerakId) {
+      throw new ForbiddenException('Peminta bantuan tidak dapat mengajukan jam kontribusi untuk bantuannya sendiri.');
+    }
+
+    const kesediaan = await this.prisma.kesediaanBantu.findUnique({
+      where: { requestId_userId: { requestId: bantuanId, userId: penggerakId } },
+      select: { status: true },
+    });
+    if (!kesediaan || kesediaan.status !== KesediaanStatus.AKTIF) {
+      throw new ForbiddenException('Hanya Penggerak yang membantu bantuan ini yang dapat mengajukan jam.');
+    }
+    if (!bantuan.dibutuhkanSebelum) {
+      throw new BadRequestException('Jadwal bantuan tidak tersedia untuk menghitung batas jam.');
+    }
+
+    const jadwalJam = Math.max(0, (bantuan.dibutuhkanSebelum.getTime() - bantuan.createdAt.getTime()) / (60 * 60 * 1000));
+    const batasJam = jadwalJam + 2;
+    if (dto.jumlahJam > batasJam + Number.EPSILON) {
+      throw new BadRequestException(`Jumlah jam melebihi durasi jadwal bantuan ditambah 2 jam (maksimal ${batasJam.toFixed(1)} jam).`);
+    }
+
+    try {
+      return await this.prisma.jamKontribusi.create({
+        data: {
+          bantuanId,
+          penggerakId,
+          jumlahJam: new Prisma.Decimal(dto.jumlahJam),
+          catatan: dto.catatan?.trim() || null,
+          batasKonfirmasiAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+        select: {
+          id: true,
+          bantuanId: true,
+          jumlahJam: true,
+          catatan: true,
+          status: true,
+          diajukanAt: true,
+          batasKonfirmasiAt: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new BadRequestException('Pengajuan jam untuk bantuan ini sudah pernah dibuat.');
+      }
+      throw error;
+    }
+  }
+
+  async getJamKontribusi(bantuanId: string, userId: string) {
+    const bantuan = await this.prisma.bantuanRequest.findUnique({
+      where: { id: bantuanId },
+      select: { id: true, pembuatId: true },
+    });
+    if (!bantuan) throw new NotFoundException('Permintaan bantuan tidak ditemukan.');
+
+    const jam = await this.prisma.jamKontribusi.findUnique({ where: { bantuanId } });
+    if (jam && jam.status === 'MENUNGGU' && jam.batasKonfirmasiAt <= new Date()) {
+      await this.prisma.jamKontribusi.updateMany({
+        where: { id: jam.id, status: 'MENUNGGU', batasKonfirmasiAt: { lte: new Date() } },
+        data: { status: 'KEDALUWARSA' },
+      });
+    }
+
+    const currentJam = jam
+      ? await this.prisma.jamKontribusi.findUnique({ where: { id: jam.id } })
+      : null;
+    const isOwner = bantuan.pembuatId === userId;
+    const isApplicant = currentJam?.penggerakId === userId;
+    const activeSupport = !currentJam ? await this.prisma.kesediaanBantu.findFirst({
+      where: { requestId: bantuanId, userId, status: KesediaanStatus.AKTIF },
+      select: { id: true },
+    }) : null;
+
+    if (!isOwner && !isApplicant && !activeSupport) {
+      throw new NotFoundException('Jam kontribusi tidak ditemukan.');
+    }
+    if (!currentJam) return null;
+
+    const { penggerakId: _penggerakId, ...safeJam } = currentJam;
+    return safeJam;
+  }
+
+  async konfirmasiJamKontribusi(bantuanId: string, pemintaId: string, dto: KonfirmasiJamKontribusiDto) {
+    if (dto.keputusan === 'DITOLAK' && !dto.alasanTolak?.trim()) {
+      throw new BadRequestException('Alasan penolakan wajib diisi.');
+    }
+    const bantuan = await this.prisma.bantuanRequest.findUnique({
+      where: { id: bantuanId },
+      select: { id: true, pembuatId: true, status: true },
+    });
+    if (!bantuan) throw new NotFoundException('Permintaan bantuan tidak ditemukan.');
+    if (bantuan.pembuatId !== pemintaId) throw new NotFoundException('Jam kontribusi tidak ditemukan.');
+    if (bantuan.status !== BantuanStatus.SELESAI) throw new BadRequestException('Bantuan belum selesai.');
+
+    const jam = await this.prisma.jamKontribusi.findUnique({ where: { bantuanId } });
+    if (!jam) throw new NotFoundException('Pengajuan jam kontribusi tidak ditemukan.');
+    if (jam.status === 'MENUNGGU' && jam.batasKonfirmasiAt <= new Date()) {
+      await this.prisma.jamKontribusi.updateMany({
+        where: { id: jam.id, status: 'MENUNGGU', batasKonfirmasiAt: { lte: new Date() } },
+        data: { status: 'KEDALUWARSA' },
+      });
+      throw new BadRequestException('Batas konfirmasi telah lewat; pengajuan berstatus kedaluwarsa.');
+    }
+    if (jam.status !== 'MENUNGGU') throw new BadRequestException('Pengajuan jam ini sudah diproses.');
+
+    const now = new Date();
+    const updated = await this.prisma.jamKontribusi.updateMany({
+      where: { id: jam.id, status: 'MENUNGGU', batasKonfirmasiAt: { gt: now } },
+      data: {
+        status: dto.keputusan,
+        dikonfirmasiAt: now,
+        alasanTolak: dto.keputusan === 'DITOLAK' ? dto.alasanTolak?.trim() : null,
+      },
+    });
+    if (updated.count !== 1) throw new BadRequestException('Pengajuan jam ini sudah diproses atau kedaluwarsa.');
+    return this.getJamKontribusi(bantuanId, pemintaId);
   }
 
   async hapus(id: string, userId: string, role: string) {

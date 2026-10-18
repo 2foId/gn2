@@ -10,6 +10,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PreferensiRelawan, Role } from '@prisma/client';
 import { UpdateBantuanDto } from './dto/update-bantuan.dto';
 import { BatalKesediaanDto } from './dto/batal-kesediaan.dto';
+import { CreateJamKontribusiDto } from './dto/create-jam-kontribusi.dto';
+import { KonfirmasiJamKontribusiDto } from './dto/konfirmasi-jam-kontribusi.dto';
 
 @Controller('bantuan')
 export class BantuanController {
@@ -92,6 +94,33 @@ export class BantuanController {
   @Patch(':id/selesai')
   tandaiSelesai(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.bantuanService.selesai(id, userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
+  @Post(':id/jam')
+  ajukanJamKontribusi(
+    @Param('id') id: string,
+    @CurrentUser('id') penggerakId: string,
+    @Body() dto: CreateJamKontribusiDto,
+  ) {
+    return this.bantuanService.ajukanJamKontribusi(id, penggerakId, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/jam')
+  getJamKontribusi(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.bantuanService.getJamKontribusi(id, userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/jam/konfirmasi')
+  konfirmasiJamKontribusi(
+    @Param('id') id: string,
+    @CurrentUser('id') pemintaId: string,
+    @Body() dto: KonfirmasiJamKontribusiDto,
+  ) {
+    return this.bantuanService.konfirmasiJamKontribusi(id, pemintaId, dto);
   }
 
   @UseGuards(JwtAuthGuard)

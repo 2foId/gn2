@@ -49,6 +49,17 @@ interface BantuanItem extends MapPin {
   kesediaanBantu?: { user: { id: string; nama: string; avatarUrl?: string | null } }[];
 }
 
+interface JamKontribusi {
+  id: string;
+  bantuanId: string;
+  jumlahJam: number | string;
+  catatan: string | null;
+  status: 'MENUNGGU' | 'TERKONFIRMASI' | 'DITOLAK' | 'KEDALUWARSA';
+  batasKonfirmasiAt: string;
+  dikonfirmasiAt: string | null;
+  alasanTolak: string | null;
+}
+
 export default function PetaPage() {
   const user = useAuthStore((s) => s.user);
   const isVerifikator = user?.role === 'PENGGERAK' || user?.role === 'ADMIN';
@@ -59,6 +70,14 @@ export default function PetaPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
   const [kesediaanStatus, setKesediaanStatus] = useState<Record<string, 'AKTIF' | 'DIBATALKAN'>>({});
+  const [jamByBantuan, setJamByBantuan] = useState<Record<string, JamKontribusi | null>>({});
+  const [jamFormId, setJamFormId] = useState<string | null>(null);
+  const [jamInput, setJamInput] = useState('1');
+  const [jamCatatan, setJamCatatan] = useState('');
+  const [jamError, setJamError] = useState<string | null>(null);
+  const [rejectJamId, setRejectJamId] = useState<string | null>(null);
+  const [rejectJamReason, setRejectJamReason] = useState('');
+  const [jamActionLoading, setJamActionLoading] = useState(false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<'AKTIF' | 'INAKTIF'>('AKTIF');
@@ -90,10 +109,27 @@ export default function PetaPage() {
     try {
       const params = { preferensi: preferensiFilter };
       const petaRes = await api.get('/bantuan/peta', { params });
-      setPins(petaRes.data);
+      const petaItems = petaRes.data as BantuanItem[];
+      setPins(petaItems);
       if (user) {
         const ownOffers = await api.get('/bantuan/saya/kesediaan');
-        setKesediaanStatus(Object.fromEntries(ownOffers.data.map((offer: { requestId: string; status: 'AKTIF' | 'DIBATALKAN' }) => [offer.requestId, offer.status])));
+        const ownOfferStatus = Object.fromEntries(ownOffers.data.map((offer: { requestId: string; status: 'AKTIF' | 'DIBATALKAN' }) => [offer.requestId, offer.status]));
+        setKesediaanStatus(ownOfferStatus);
+        const relatedFinished = petaItems.filter((item) => item.status === 'SELESAI' && (
+          item.pembuat.id === user.id || ownOfferStatus[item.id] === 'AKTIF'
+        ));
+        const jamEntries = await Promise.all(relatedFinished.map(async (item) => {
+          try {
+            const response = await api.get(`/bantuan/${item.id}/jam`);
+            return [item.id, response.data as JamKontribusi | null] as const;
+          } catch {
+            return [item.id, null] as const;
+          }
+        }));
+        setJamByBantuan(Object.fromEntries(jamEntries));
+      } else {
+        setKesediaanStatus({});
+        setJamByBantuan({});
       }
 
       if (isVerifikator) {
@@ -188,6 +224,48 @@ export default function PetaPage() {
     await api.patch(`/bantuan/${id}/selesai`);
     setMessage('Permintaan bantuan telah ditandai selesai.');
     loadData();
+  }
+
+  async function submitJamKontribusi(id: string) {
+    setJamError(null);
+    const jumlahJam = Number(jamInput);
+    if (!Number.isFinite(jumlahJam) || jumlahJam < 0.5 || jumlahJam > 12 || jumlahJam % 0.5 !== 0) {
+      setJamError('Jumlah jam harus antara 0,5 dan 12 dengan kelipatan 0,5.');
+      return;
+    }
+    setJamActionLoading(true);
+    try {
+      await api.post(`/bantuan/${id}/jam`, { jumlahJam, catatan: jamCatatan.trim() || undefined });
+      setJamFormId(null);
+      setJamCatatan('');
+      setJamInput('1');
+      await loadData();
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      setJamError(Array.isArray(message) ? message.join('. ') : message ?? 'Pengajuan jam gagal dikirim.');
+    } finally {
+      setJamActionLoading(false);
+    }
+  }
+
+  async function decideJam(id: string, keputusan: 'TERKONFIRMASI' | 'DITOLAK', alasanTolak?: string) {
+    setJamError(null);
+    if (keputusan === 'DITOLAK' && !alasanTolak?.trim()) {
+      setJamError('Alasan penolakan wajib diisi.');
+      return;
+    }
+    setJamActionLoading(true);
+    try {
+      await api.post(`/bantuan/${id}/jam/konfirmasi`, { keputusan, ...(keputusan === 'DITOLAK' ? { alasanTolak: alasanTolak?.trim() } : {}) });
+      setRejectJamId(null);
+      setRejectJamReason('');
+      await loadData();
+    } catch (error: any) {
+      const message = error.response?.data?.message;
+      setJamError(Array.isArray(message) ? message.join('. ') : message ?? 'Keputusan gagal disimpan.');
+    } finally {
+      setJamActionLoading(false);
+    }
   }
 
   async function confirmDeleteBantuan() {
@@ -483,6 +561,8 @@ export default function PetaPage() {
                 const kategoriObj = KATEGORI.find((k) => k.value === item.kategori) || KATEGORI[3];
                 const isCreator = user?.id === item.pembuat?.id;
                 const hasClickedKesediaan = !!kesediaanStatus[item.id] || !!item.kesediaanBantu?.some((k) => k.user.id === user?.id);
+                const isActiveHelper = user?.role === 'PENGGERAK' && (kesediaanStatus[item.id] === 'AKTIF' || !!item.kesediaanBantu?.some((entry) => entry.user.id === user.id));
+                const jam = jamByBantuan[item.id];
                 const isCancelled = kesediaanStatus[item.id] === 'DIBATALKAN';
                 return (
                   <div
@@ -500,6 +580,44 @@ export default function PetaPage() {
                       </div>}
                       <span className={`rounded-md px-2 py-1 font-body text-xs font-medium uppercase text-white ${item.status === 'SELESAI' ? 'bg-red-500' : item.status === 'AKTIF' ? 'bg-green-400' : 'bg-guyub-bambuDark'}`}>STATUS: {item.status.replace('_', ' ')}</span>
                     </div>
+                    {item.status === 'SELESAI' && (isCreator || isActiveHelper) && <section className="mt-3 rounded-lg border border-guyub-bambu/25 bg-guyub-krem p-3 dark:border-stone-600 dark:bg-stone-900">
+                      <h3 className="font-body text-sm font-semibold text-guyub-bambuDark dark:text-stone-100">Jam kontribusi</h3>
+                      {jam ? <>
+                        <p className="mt-1 font-body text-sm text-stone-700 dark:text-stone-200">
+                          {jam.status === 'MENUNGGU' ? 'Menunggu konfirmasi' : jam.status === 'TERKONFIRMASI' ? 'Terkonfirmasi' : jam.status === 'DITOLAK' ? 'Ditolak' : 'Kedaluwarsa'} · {Number(jam.jumlahJam).toLocaleString('id-ID')} jam
+                        </p>
+                        {jam.catatan && <p className="mt-1 whitespace-pre-line font-body text-sm text-stone-600 dark:text-stone-300">{jam.catatan}</p>}
+                        {jam.alasanTolak && <p className="mt-1 font-body text-sm text-red-800 dark:text-red-300">Alasan: {jam.alasanTolak}</p>}
+                        {isCreator && jam.status === 'MENUNGGU' && <>
+                          <p className="mt-1 font-body text-xs text-stone-600 dark:text-stone-300">Konfirmasi paling lambat {format(parseISO(jam.batasKonfirmasiAt), 'dd MMM yyyy, HH:mm', { locale: id })}.</p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button type="button" disabled={jamActionLoading} onClick={() => void decideJam(item.id, 'TERKONFIRMASI')} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-xs font-semibold text-white disabled:opacity-50">Konfirmasi</button>
+                            <button type="button" disabled={jamActionLoading} onClick={() => { setRejectJamId(item.id); setRejectJamReason(''); setJamError(null); }} className="rounded-full border border-red-800 px-4 py-2 font-body text-xs font-semibold text-red-800 dark:border-red-400 dark:text-red-300">Tolak</button>
+                          </div>
+                        </>}
+                      </> : isActiveHelper ? <>
+                        {jamFormId === item.id ? <form onSubmit={(event) => { event.preventDefault(); void submitJamKontribusi(item.id); }} className="mt-3 space-y-2">
+                          <label className="block font-body text-xs font-medium text-stone-700 dark:text-stone-200">Jumlah jam (0,5–12)</label>
+                          <input type="number" min="0.5" max="12" step="0.5" required value={jamInput} onChange={(event) => setJamInput(event.target.value)} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-sm dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100" />
+                          <label className="block font-body text-xs font-medium text-stone-700 dark:text-stone-200">Catatan (opsional)</label>
+                          <textarea maxLength={300} rows={2} value={jamCatatan} onChange={(event) => setJamCatatan(event.target.value)} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-sm dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100" />
+                          {jamError && <p role="alert" className="font-body text-xs text-red-800 dark:text-red-300">{jamError}</p>}
+                          <div className="flex flex-wrap gap-2">
+                            <button type="submit" disabled={jamActionLoading} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-xs font-semibold text-white disabled:opacity-50">{jamActionLoading ? 'Mengirim…' : 'Ajukan jam'}</button>
+                            <button type="button" onClick={() => { setJamFormId(null); setJamError(null); }} className="rounded-full border border-stone-400 px-4 py-2 font-body text-xs text-stone-700 dark:border-stone-500 dark:text-stone-100">Batal</button>
+                          </div>
+                        </form> : <button type="button" onClick={() => { setJamFormId(item.id); setJamError(null); }} className="mt-2 rounded-full border border-guyub-bambuDark px-4 py-2 font-body text-xs font-semibold text-guyub-bambuDark dark:border-stone-400 dark:text-stone-100">Ajukan jam kontribusi</button>}
+                      </> : <p className="mt-1 font-body text-xs text-stone-600 dark:text-stone-300">Belum ada pengajuan jam kontribusi.</p>}
+                      {rejectJamId === item.id && jam?.status === 'MENUNGGU' && <form onSubmit={(event) => { event.preventDefault(); void decideJam(item.id, 'DITOLAK', rejectJamReason); }} className="mt-3 space-y-2">
+                        <label className="block font-body text-xs font-medium text-stone-700 dark:text-stone-200">Alasan penolakan (wajib)</label>
+                        <textarea required maxLength={200} value={rejectJamReason} onChange={(event) => setRejectJamReason(event.target.value)} className="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-sm dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100" />
+                        {jamError && <p role="alert" className="font-body text-xs text-red-800 dark:text-red-300">{jamError}</p>}
+                        <div className="flex gap-2">
+                          <button type="submit" disabled={jamActionLoading || !rejectJamReason.trim()} className="rounded-full bg-red-800 px-4 py-2 font-body text-xs font-semibold text-white disabled:opacity-50">Kirim penolakan</button>
+                          <button type="button" onClick={() => setRejectJamId(null)} className="rounded-full border border-stone-400 px-4 py-2 font-body text-xs text-stone-700 dark:border-stone-500 dark:text-stone-100">Batal</button>
+                        </div>
+                      </form>}
+                    </section>}
                     <div className="absolute right-3 top-3 flex items-center">
                       {item.kesediaanBantu?.slice(0, 4).map((supporter, index) => <div key={supporter.user.id} className={index ? '-ml-2' : ''}><UserAvatar user={supporter.user} size="sm" /></div>)}
                       {(item._count?.kesediaanBantu ?? 0) > 4 && <span className="-ml-2 flex h-7 w-7 items-center justify-center rounded-full border border-yellow-400 bg-gray-300 text-[10px] font-semibold text-black">+{(item._count?.kesediaanBantu ?? 0) - 4}</span>}
