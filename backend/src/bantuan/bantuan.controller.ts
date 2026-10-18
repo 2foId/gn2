@@ -21,9 +21,9 @@ export class BantuanController {
     return this.bantuanService.findAllForMap(preferensi);
   }
 
-  // Hanya Relawan/RT & Admin yang bisa lihat antrian verifikasi
+  // Hanya Penggerak & Admin yang bisa lihat antrian verifikasi
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.RELAWAN, Role.ADMIN)
+  @Roles(Role.PENGGERAK, Role.ADMIN)
   @Get('verifikasi')
   findAllForVerifikator(@Query('preferensi') preferensi?: PreferensiRelawan) {
     return this.bantuanService.findAllForVerifikator(preferensi);
@@ -53,9 +53,9 @@ export class BantuanController {
     return this.bantuanService.update(id, userId, dto);
   }
 
-  // Approve/tolak pin — hanya Relawan/RT & Admin (dicek di backend, bukan sekadar disembunyikan di UI)
+  // Approve/tolak pin — hanya Penggerak & Admin
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.RELAWAN, Role.ADMIN)
+  @Roles(Role.PENGGERAK, Role.ADMIN)
   @Patch(':id/verifikasi')
   verifikasi(
     @Param('id') id: string,
@@ -66,7 +66,7 @@ export class BantuanController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.RELAWAN, Role.ADMIN)
+  @Roles(Role.PENGGERAK, Role.ADMIN)
   @Patch(':id/status')
   updateStatus(@Param('id') id: string, @Body() dto: UpdateStatusDto) {
     return this.bantuanService.updateStatus(id, dto.status);

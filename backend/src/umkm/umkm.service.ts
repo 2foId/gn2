@@ -73,19 +73,19 @@ export class UmkmService {
     return this.prisma.umkmNeed.update({ where: { id }, data: { status } });
   }
 
-  // Hanya pemilik usaha, relawan, atau admin yang boleh menghapus kebutuhan
+  // Hanya pemilik usaha, penggerak, atau admin yang boleh menghapus kebutuhan
   async hapus(id: string, userId: string, role: string) {
     const item = await this.findOne(id);
-    if (item.pemilikId !== userId && role !== 'ADMIN' && role !== 'RELAWAN') {
-      throw new ForbiddenException('Hanya pemilik usaha, relawan, atau admin yang bisa menghapus kebutuhan ini');
+    if (item.pemilikId !== userId && role !== 'ADMIN' && role !== 'PENGGERAK') {
+      throw new ForbiddenException('Hanya pemilik usaha, penggerak, atau admin yang bisa menghapus kebutuhan ini');
     }
     return this.prisma.umkmNeed.delete({ where: { id } });
   }
 
-  // Hanya relawan pemilik response, hanya jika status kebutuhan SELESAI, satu portofolio per response.
+  // Hanya Penggerak pemilik response, hanya jika status kebutuhan SELESAI, satu portofolio per response.
   async addPortfolio(responseId: string, userId: string, role: string, dto: CreatePortfolioDto & { beforeImageUrl: string; afterImageUrl: string }) {
-    if (role !== Role.RELAWAN) {
-      throw new ForbiddenException('Hanya relawan yang bisa menambahkan portofolio.');
+    if (role !== Role.PENGGERAK) {
+      throw new ForbiddenException('Hanya Penggerak yang bisa menambahkan portofolio.');
     }
     const response = await this.prisma.umkmResponse.findUnique({
       where: { id: responseId },

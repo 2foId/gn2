@@ -29,8 +29,8 @@ const KATEGORI = [
 
 const PREFERENSI_RELAWAN = [
   { value: 'SEMUA', label: 'Siapa saja', description: 'Terbuka untuk semua warga', icon: '/icons/semua.svg' },
-  { value: 'PEMUDA_18_30', label: 'Pemuda 18–30', description: 'Diutamakan relawan usia 18–30 tahun', icon: '/icons/pemuda.svg' },
-  { value: 'BERPENGALAMAN', label: 'Berpengalaman', description: 'Diutamakan relawan dengan keahlian yang relevan', icon: '/icons/berpengalaman.svg' },
+  { value: 'PEMUDA_18_30', label: 'Pemuda 18–30', description: 'Diutamakan Penggerak usia 18–30 tahun', icon: '/icons/pemuda.svg' },
+  { value: 'BERPENGALAMAN', label: 'Berpengalaman', description: 'Diutamakan Penggerak dengan keahlian yang relevan', icon: '/icons/berpengalaman.svg' },
 ] as const;
 
 function getKategoriLabel(value: string) {
@@ -51,7 +51,7 @@ interface BantuanItem extends MapPin {
 
 export default function PetaPage() {
   const user = useAuthStore((s) => s.user);
-  const isVerifikator = user?.role === 'RELAWAN' || user?.role === 'ADMIN';
+  const isVerifikator = user?.role === 'PENGGERAK' || user?.role === 'ADMIN';
 
   const [pins, setPins] = useState<BantuanItem[]>([]);
   const [antrian, setAntrian] = useState<BantuanItem[]>([]);
@@ -140,7 +140,7 @@ export default function PetaPage() {
         longitude: parseFloat(form.longitude),
         dibutuhkanSebelum: form.dibutuhkanSebelum ? new Date(form.dibutuhkanSebelum).toISOString() : undefined,
       });
-      setMessage('Permintaan bantuan berhasil dikirim, menunggu verifikasi Relawan/RT.');
+      setMessage('Permintaan bantuan berhasil dikirim, menunggu verifikasi Penggerak.');
       setShowForm(false);
       setForm({ judul: '', deskripsi: '', kategori: 'LAINNYA', latitude: '-7.3886', longitude: '109.3639', alamat: '', dibutuhkanSebelum: '', preferensiRelawan: 'SEMUA' });
       setTouched({});
@@ -385,7 +385,7 @@ export default function PetaPage() {
         {!showForm && <p className="mb-2 font-body text-xs text-stone-500">Ukuran peta dapat diubah dengan menarik sudut kanan bawah.</p>}
         <div className="mb-3 flex h-10 w-fit items-center rounded-full border border-stone-300 bg-white p-1">
           {[
-            { value: 'SEMUA', label: 'Semua relawan' },
+            { value: 'SEMUA', label: 'Semua Penggerak' },
             { value: 'PEMUDA_18_30', label: 'Pemuda 18–30' },
             { value: 'BERPENGALAMAN', label: 'Berpengalaman' },
           ].map((choice) => (
@@ -539,7 +539,7 @@ export default function PetaPage() {
                             Bersedia Bantu
                           </button>
                         )}
-                        {(isCreator || user?.role === 'ADMIN' || user?.role === 'RELAWAN') && (item.status === 'SELESAI' || item.status === 'DITOLAK') && (
+                        {(isCreator || user?.role === 'ADMIN' || user?.role === 'PENGGERAK') && (item.status === 'SELESAI' || item.status === 'DITOLAK') && (
                           <button
                             type="button"
                             onClick={() => setDeleteBantuanId(item.id)}

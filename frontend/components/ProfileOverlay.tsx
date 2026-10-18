@@ -95,7 +95,7 @@ export function ProfileOverlay() {
             setNoteText('');
             setShowNoteEditor(false);
 
-            // Muat portofolio relawan (hanya yang dipublikasikan)
+            // Muat portofolio Penggerak (hanya yang dipublikasikan)
             try {
                 setPortfolioLoading(true);
                 const portfolioResponse = await api.get(`/volunteers/${userId}/portfolio`);
@@ -124,9 +124,10 @@ export function ProfileOverlay() {
     async function saveProfile(event: React.FormEvent) {
         event.preventDefault();
         try {
+            const { phone, ...profileFields } = form;
             const response = await api.patch('/users/me/profile', {
-                ...form,
-                phone: form.phone ? `+62${form.phone.replace(/\D/g, '')}` : null,
+                ...profileFields,
+                ...(profile?.role === 'PENGGERAK' ? { phone: phone ? `+62${phone.replace(/\D/g, '')}` : null } : {}),
                 tanggalLahir: form.tanggalLahir || undefined,
                 ketersediaan: form.ketersediaan || undefined,
             });
@@ -279,7 +280,7 @@ export function ProfileOverlay() {
                         ) : (
                             <p className="mt-2 whitespace-pre-line break-words font-body text-stone-700">{profile.bio || 'Belum ada bio.'}</p>
                         )}
-                        {!editing && profile.phone && <div className="mt-4"><WhatsAppButton phone={profile.phone} /></div>}
+                        {!editing && profile.role === 'PENGGERAK' && profile.phone && <div className="mt-4"><WhatsAppButton phone={profile.phone} /></div>}
                     </div>
                 </div>
                 {isMine && (
@@ -392,14 +393,14 @@ export function ProfileOverlay() {
                         <p className={`mt-1 text-right font-body text-xs ${form.nama.length > 20 ? 'text-guyub-merahBata' : 'text-stone-500'}`}>{form.nama.length}/20</p>
                         {form.nama.length > 20 && <p role="alert" className="font-body text-sm text-guyub-merahBata">Nama melebihi 20 karakter. Perbaiki nama sebelum menyimpan.</p>}
                     </div>
-                    <div>
+                    {profile.role === 'PENGGERAK' && <div>
                         <label htmlFor="profile-phone" className="block font-body text-sm font-medium text-stone-700">Nomor WhatsApp</label>
                         <div className="mt-1 flex rounded-lg border border-stone-300 bg-white">
                             <span className="inline-flex items-center border-r border-stone-300 px-3 font-body text-stone-700">+62</span>
                             <input id="profile-phone" inputMode="numeric" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 13) })} maxLength={13} className="min-w-0 flex-1 rounded-r-lg bg-transparent px-3 py-2 font-body text-stone-800 outline-none" placeholder="8123456789" />
                         </div>
                         <p className="mt-1 font-body text-xs text-stone-600">Opsional. Dipakai agar orang bisa menghubungimu lewat WhatsApp.</p>
-                    </div>
+                    </div>}
                     <section className="space-y-3 rounded-2xl border-2 border-yellow-400 bg-white p-4 shadow-sm">
                         <h3 className="font-display text-lg font-semibold text-guyub-bambuDark">Keahlian &amp; Ketersediaan</h3>
                         <div>

@@ -13,6 +13,7 @@ import { MessagesModule } from './messages/messages.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { DampakModule } from './dampak/dampak.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { LibraryModule } from './library/library.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     MessagesModule,
     UploadsModule,
     DampakModule,
+    LibraryModule,
     ScheduleModule.forRoot(),
   ],
   providers: [

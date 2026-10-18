@@ -23,15 +23,15 @@ const FAQ_LIST: FaqItem[] = [
     },
     {
         kategori: 'Akun & Login',
-        pertanyaan: 'Bagaimana cara akun saya menjadi Relawan/RT?',
+        pertanyaan: 'Bagaimana cara akun saya menjadi Penggerak?',
         jawaban:
-            'Penetapan role Relawan/RT dilakukan oleh Admin, bukan bisa diubah sendiri oleh warga. Hubungi Admin komunitas kamu untuk pengajuan.',
+            'Pilih peran Penggerak pada onboarding. Setelah onboarding, peran bisa diubah dari fitur yang meminta akses Penggerak.',
     },
     {
         kategori: 'Peta Butuh Guyub',
         pertanyaan: 'Kenapa permintaan bantuan saya belum muncul di peta?',
         jawaban:
-            'Setiap permintaan baru berstatus "menunggu verifikasi" terlebih dulu. Permintaan baru tampil di peta setelah disetujui oleh Relawan/RT atau Admin ,proses ini untuk memastikan kebutuhan yang tampil memang valid.',
+            'Setiap permintaan baru berstatus "menunggu verifikasi" terlebih dulu. Permintaan baru tampil di peta setelah disetujui oleh Penggerak atau Admin, untuk memastikan kebutuhan yang tampil memang valid.',
     },
     {
         kategori: 'Peta Butuh Guyub',

@@ -21,7 +21,7 @@ export default function LoginPage() {
     try {
       const res = await api.post('/auth/login', { email, password });
       setSession(res.data.user, res.data.accessToken);
-      router.push('/dashboard/peta');
+      router.push(res.data.user.onboardingDone ? '/dashboard/peta' : '/onboarding');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Gagal masuk, periksa kembali data Anda');
     } finally {

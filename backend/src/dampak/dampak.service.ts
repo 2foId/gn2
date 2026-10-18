@@ -17,7 +17,7 @@ export class DampakService {
             WasiatKategori.BEBAS,
         ];
 
-        const [langkahLulus, penggunaUnikLulus, umkmTerpenuhi, umkmResponse, bantuanSelesai, kesediaanBantu, wasiatDibuat, wasiatBudaya, userAktif, relawanUsia18_30] = await Promise.all([
+        const [langkahLulus, penggunaUnikLulus, umkmTerpenuhi, umkmResponse, bantuanSelesai, kesediaanBantu, wasiatDibuat, wasiatBudaya, userAktif, penggerakUsia18_30] = await Promise.all([
             // Sumber: progres wasiat yang sudah lulus, menunjukkan jumlah langkah/ujian yang berhasil diselesaikan.
             this.prisma.wasiatProgress.count({ where: { lulus: true } }),
             // Sumber: progres wasiat yang lulus, dihitung per pengguna unik agar tidak menggandakan satu orang.
@@ -36,10 +36,10 @@ export class DampakService {
             this.prisma.wasiat.count({ where: { kategori: { in: budayaKategori } } }),
             // Sumber: refresh token yang dibuat dalam 30 hari terakhir, jadi indikator login aktif bila data tersedia.
             this.prisma.refreshToken.groupBy({ by: ['userId'], where: { createdAt: { gte: last30Days } } }).then((rows) => rows.length),
-            // Sumber: relawan yang lahir dalam rentang usia 18–30 tahun, menilai potensi SDM muda.
+            // Sumber: Penggerak yang lahir dalam rentang usia 18–30 tahun, menilai potensi SDM muda.
             this.prisma.user.count({
                 where: {
-                    role: 'RELAWAN',
+                    role: 'PENGGERAK',
                     tanggalLahir: {
                         lte: new Date(Date.now() - 18 * 365 * 24 * 60 * 60 * 1000),
                         gte: new Date(Date.now() - 30 * 365 * 24 * 60 * 60 * 1000),
@@ -67,7 +67,7 @@ export class DampakService {
             },
             sdm: {
                 userAktif: userAktif,
-                relawanUsia18_30: relawanUsia18_30,
+                penggerakUsia18_30,
             },
         };
     }

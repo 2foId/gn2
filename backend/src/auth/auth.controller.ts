@@ -59,8 +59,10 @@ export class AuthController {
   }
 
   @Get('verify-email')
-  async verifyEmail(@Query('token') token: string) {
-    return this.authService.verifyEmail(token);
+  async verifyEmail(@Query('token') token: string, @Res({ passthrough: true }) res: Response) {
+    const { refreshToken, ...result } = await this.authService.verifyEmail(token);
+    this.setRefreshCookie(res, refreshToken);
+    return result;
   }
 
   @Throttle({ default: { limit: 5, ttl: 900000 } })

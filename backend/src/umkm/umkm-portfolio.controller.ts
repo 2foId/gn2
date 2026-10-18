@@ -18,9 +18,11 @@ import { extname } from 'path';
 import { randomUUID } from 'crypto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { UmkmService } from './umkm.service';
 import { CreatePortfolioDto, UpdatePortfolioDto } from './dto/create-portfolio.dto';
-import { SkillCategory } from '@prisma/client';
+import { Role, SkillCategory } from '@prisma/client';
 
 const portfolioExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 
@@ -28,7 +30,8 @@ const portfolioExtensions = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 export class UmkmPortfolioController {
   constructor(private umkmService: UmkmService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Post('responses/:id/portfolio')
   @UseInterceptors(
     FilesInterceptor('images', 2, {
@@ -64,7 +67,8 @@ export class UmkmPortfolioController {
     });
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Patch('portfolios/:id')
   async updatePortfolio(
     @Param('id') id: string,
@@ -74,7 +78,8 @@ export class UmkmPortfolioController {
     return this.umkmService.updatePortfolio(id, userId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Delete('portfolios/:id')
   async deletePortfolio(@Param('id') id: string, @CurrentUser('id') userId: string) {
     return this.umkmService.deletePortfolio(id, userId);

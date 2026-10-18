@@ -12,8 +12,8 @@ datasource db {
 // =========================================
 
 enum Role {
-  WARGA
-  RELAWAN
+  PELAJAR
+  PENGGERAK
   ADMIN
 }
 
@@ -93,7 +93,8 @@ model User {
   dusun         String?
   rt            String?
   rw            String?
-  role          Role     @default(WARGA)
+  role          Role     @default(PELAJAR)
+  onboardingDone Boolean @default(false)
   xpTotal       Int      @default(0)
   level         Int      @default(1)
   currency      Int      @default(0)

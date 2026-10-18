@@ -5,6 +5,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CreateNoteDto } from './dto/create-note.dto';
 import { UpdateThemeDto } from './dto/update-theme.dto';
+import { OnboardingDto } from './dto/onboarding.dto';
 
 @Controller('users')
 export class UsersController {
@@ -38,6 +39,12 @@ export class UsersController {
     @Patch('me/profile')
     updateMine(@CurrentUser('id') userId: string, @Body() dto: UpdateProfileDto) {
         return this.usersService.updateProfile(userId, dto);
+    }
+
+    @UseGuards(JwtAuthGuard)
+    @Post('onboarding')
+    completeOnboarding(@CurrentUser('id') userId: string, @Body() dto: OnboardingDto) {
+        return this.usersService.completeOnboarding(userId, dto.role);
     }
 
     @UseGuards(JwtAuthGuard)

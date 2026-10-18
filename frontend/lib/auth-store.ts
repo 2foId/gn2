@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type Role = 'WARGA' | 'RELAWAN' | 'ADMIN';
+export type Role = 'PELAJAR' | 'PENGGERAK' | 'ADMIN';
 export type ThemePreference = 'LIGHT' | 'DARK';
 
 function applyTheme(theme: ThemePreference) {
@@ -18,6 +18,7 @@ export interface AuthUser {
   nama: string;
   email: string;
   role: Role;
+  onboardingDone?: boolean;
   dusun?: string | null;
   avatarUrl?: string | null;
   bio?: string | null;

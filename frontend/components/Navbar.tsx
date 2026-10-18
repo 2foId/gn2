@@ -10,6 +10,7 @@ import { UserAvatar } from '@/components/UserIdentity';
 const menu = [
   { href: '/dashboard/peta', label: 'Peta Butuh Guyub' },
   { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
+  { href: '/library', label: 'Pustaka' },
   { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
   { href: '/dashboard/acara', label: 'Guyub Acara' },
 ];
@@ -20,7 +21,7 @@ export function Navbar() {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const [currency, setCurrency] = useState(0);
-  const visibleMenu = user && (user.role === 'ADMIN' || user.role === 'RELAWAN')
+  const visibleMenu = user && (user.role === 'ADMIN' || user.role === 'PENGGERAK')
     ? [...menu, { href: '/dashboard/dampak', label: 'Dampak' }]
     : menu;
 
@@ -109,7 +110,7 @@ export function Navbar() {
             <div>
               <p className="font-body text-sm font-medium text-stone-800 hover:underline">{user?.nama}</p>
               <p className="font-body text-xs uppercase tracking-wide text-guyub-tanah">
-                {user?.role === 'ADMIN' ? 'Admin' : user?.role === 'RELAWAN' ? 'Relawan/RT' : 'Warga'}
+                {user?.role === 'ADMIN' ? 'Admin' : user?.role === 'PENGGERAK' ? 'Penggerak' : 'Pelajar'}
               </p>
             </div>
           </button>

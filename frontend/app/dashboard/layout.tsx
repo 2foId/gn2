@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { Navbar } from '@/components/Navbar';
 import { ProfileOverlay } from '@/components/ProfileOverlay';
 import { MessageOverlay } from '@/components/MessageOverlay';
+import { PenggerakOnly } from '@/components/PenggerakOnly';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isInitialized = useAuthStore((s) => s.isInitialized);
 
@@ -16,6 +18,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Tunggu proses restore sesi (via refresh cookie) selesai dulu sebelum memutuskan redirect
     if (isInitialized && !user) {
       router.replace('/login');
+    }
+    if (isInitialized && user && !user.onboardingDone) {
+      router.replace('/onboarding');
     }
   }, [isInitialized, user, router]);
 
@@ -34,7 +39,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <ProfileOverlay />
       <MessageOverlay />
       <div className="guyub-pattern flex-1">
-        <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-6 py-8">
+          {user.role === 'PELAJAR' && (pathname?.startsWith('/dashboard/umkm') || pathname?.startsWith('/dashboard/acara'))
+            ? <PenggerakOnly />
+            : children}
+        </main>
       </div>
     </div>
   );

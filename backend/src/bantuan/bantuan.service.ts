@@ -12,7 +12,7 @@ export class BantuanService {
 
   private matchesPreferensiRelawan(user: { role: string; keahlian: SkillCategory[]; kategoriUsia: string | null }, preferensi: PreferensiRelawan) {
     if (preferensi === PreferensiRelawan.SEMUA) return true;
-    if (user.role !== 'RELAWAN') return false;
+    if (user.role !== 'PENGGERAK') return false;
 
     if (preferensi === PreferensiRelawan.PEMUDA_18_30) return user.kategoriUsia === 'PEMUDA_18_30';
 
@@ -104,7 +104,7 @@ export class BantuanService {
     }).filter((item) => item.cocokPreferensi));
   }
 
-  // Khusus Relawan/RT & Admin: lihat semua termasuk yang masih menunggu verifikasi
+  // Khusus Penggerak & Admin: lihat semua termasuk yang masih menunggu verifikasi
   findAllForVerifikator(preferensi?: PreferensiRelawan) {
     this.isValidPreferensi(preferensi);
     const where = undefined;
@@ -143,7 +143,7 @@ export class BantuanService {
     return item;
   }
 
-  // Hanya boleh dipanggil dari endpoint yang dilindungi Roles(RELAWAN, ADMIN)
+  // Hanya boleh dipanggil dari endpoint yang dilindungi Roles(PENGGERAK, ADMIN)
   async verifikasi(id: string, verifikatorId: string, disetujui: boolean) {
     const item = await this.findOne(id);
     if (item.status !== BantuanStatus.MENUNGGU_VERIFIKASI) {
@@ -184,8 +184,8 @@ export class BantuanService {
     if (item.status === BantuanStatus.AKTIF || item.status === BantuanStatus.DIPROSES || item.status === BantuanStatus.MENUNGGU_VERIFIKASI) {
       throw new BadRequestException('Hanya permintaan yang sudah selesai/ditolak yang bisa dihapus');
     }
-    if (item.pembuatId !== userId && role !== 'ADMIN' && role !== 'RELAWAN') {
-      throw new ForbiddenException('Hanya pembuat atau admin/relawan yang bisa menghapus permintaan ini');
+    if (item.pembuatId !== userId && role !== 'ADMIN' && role !== 'PENGGERAK') {
+      throw new ForbiddenException('Hanya pembuat atau admin/penggerak yang bisa menghapus permintaan ini');
     }
     await this.hapusFoto(item.foto);
     return this.prisma.bantuanRequest.delete({ where: { id } });

@@ -15,6 +15,7 @@ async function main() {
       email: adminEmail,
       passwordHash: await bcrypt.hash('AdminGuyub123', 12),
       role: Role.ADMIN,
+      onboardingDone: true,
       emailVerifiedAt: new Date(),
       dusun: 'Purbalingga',
     },

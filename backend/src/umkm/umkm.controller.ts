@@ -6,29 +6,37 @@ import { UpdateUmkmStatusDto } from './dto/update-status.dto';
 import { CreateUmkmRatingDto } from './dto/create-rating.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { UmkmNeedStatus, SkillCategory } from '@prisma/client';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Role, UmkmNeedStatus, SkillCategory } from '@prisma/client';
 
 @Controller('umkm')
 export class UmkmController {
   constructor(private umkmService: UmkmService) {}
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Get()
   findAll(@Query('status') status?: UmkmNeedStatus, @Query('category') category?: SkillCategory) {
     return this.umkmService.findAll(status, category);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.umkmService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Post()
   create(@CurrentUser('id') userId: string, @Body() dto: CreateUmkmNeedDto) {
     return this.umkmService.create(userId, dto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Post(':id/respon')
   addResponse(
     @Param('id') id: string,
@@ -38,7 +46,8 @@ export class UmkmController {
     return this.umkmService.addResponse(id, userId, dto.pesan);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
@@ -48,7 +57,8 @@ export class UmkmController {
     return this.umkmService.updateStatus(id, userId, dto.status);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Delete(':id')
   hapus(
     @Param('id') id: string,
@@ -58,7 +68,8 @@ export class UmkmController {
     return this.umkmService.hapus(id, userId, role);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PENGGERAK)
   @Post('responses/:id/rating')
   addRating(
     @Param('id') responseId: string,

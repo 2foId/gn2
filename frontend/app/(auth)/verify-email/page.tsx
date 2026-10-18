@@ -1,12 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/lib/auth-store';
 
 export default function VerifyEmailPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const setSession = useAuthStore((state) => state.setSession);
   const token = searchParams.get('token');
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -24,15 +27,17 @@ export default function VerifyEmailPage() {
     async function verify(verificationToken: string) {
       try {
         const res = await api.get(`/auth/verify-email?token=${encodeURIComponent(verificationToken)}`);
+        setSession(res.data.user, res.data.accessToken);
         setStatus('success');
         setMessage('Email kamu sudah terverifikasi. Silakan masuk.');
+        router.replace(res.data.user.onboardingDone ? '/dashboard/peta' : '/onboarding');
       } catch (err: any) {
         setStatus('error');
         setMessage(err.response?.data?.message ?? 'Verifikasi gagal.');
       }
     }
     void verify(token);
-  }, [token]);
+  }, [token, router, setSession]);
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-guyub-krem px-6">

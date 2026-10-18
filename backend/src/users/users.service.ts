@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Role, ThemePreference } from '@prisma/client';
 import { NotFoundException } from '@nestjs/common';
@@ -77,7 +77,11 @@ export class UsersService {
     });
     if (!user) throw new NotFoundException('Profil tidak ditemukan');
     const { tanggalLahir, ...publicUser } = user;
-    return { ...publicUser, kategoriUsia: this.kategoriUsia(tanggalLahir) };
+    return {
+      ...publicUser,
+      phone: user.role === 'PENGGERAK' ? user.phone : null,
+      kategoriUsia: this.kategoriUsia(tanggalLahir),
+    };
   }
 
   async findMyProfile(id: string) {
@@ -91,6 +95,7 @@ export class UsersService {
         bio: true,
         dusun: true,
         role: true,
+        onboardingDone: true,
         keahlian: true,
         ketersediaan: true,
         tanggalLahir: true,
@@ -102,16 +107,28 @@ export class UsersService {
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto) {
-    // TODO: Tolak phone untuk PELAJAR jika role tersebut ditambahkan ke schema.
+    const currentUser = await this.prisma.user.findUnique({
+      where: { id },
+      select: { role: true },
+    });
+    if (!currentUser) throw new NotFoundException('Profil tidak ditemukan');
+
+    const role = dto.role ?? currentUser.role;
+    if (role === 'PELAJAR' && dto.phone !== undefined) {
+      throw new BadRequestException('Nomor WhatsApp hanya untuk Penggerak.');
+    }
+
     const payload = {
       ...dto,
-      phone: dto.phone === undefined
-        ? undefined
-        : dto.phone === null
-          ? null
-          : dto.phone.startsWith('08')
-            ? `+62${dto.phone.slice(1)}`
-            : dto.phone,
+      phone: role === 'PELAJAR'
+        ? null
+        : dto.phone === undefined
+          ? undefined
+          : dto.phone === null
+            ? null
+            : dto.phone.startsWith('08')
+              ? `+62${dto.phone.slice(1)}`
+              : dto.phone,
       tanggalLahir: dto.tanggalLahir ? new Date(dto.tanggalLahir) : undefined,
     };
 
@@ -126,6 +143,7 @@ export class UsersService {
         bio: true,
         dusun: true,
         role: true,
+        onboardingDone: true,
         keahlian: true,
         ketersediaan: true,
         tanggalLahir: true,
@@ -134,6 +152,21 @@ export class UsersService {
       },
     });
     return { ...user, kategoriUsia: this.kategoriUsia(user.tanggalLahir) };
+  }
+
+  async completeOnboarding(id: string, role: 'PELAJAR' | 'PENGGERAK') {
+    const result = await this.prisma.user.updateMany({
+      where: { id, onboardingDone: false },
+      data: {
+        role,
+        onboardingDone: true,
+        ...(role === 'PELAJAR' ? { phone: null } : {}),
+      },
+    });
+    if (result.count !== 1) {
+      throw new BadRequestException('Onboarding sudah diselesaikan. Ubah peran melalui profil.');
+    }
+    return this.findMyProfile(id);
   }
 
   async findNotes(authorId: string, targetUserId: string) {
@@ -209,7 +242,7 @@ export class UsersService {
     return this.prisma.user.update({ where: { id }, data: { role } });
   }
 
-  // Hanya dipakai Admin: daftar seluruh warga untuk kelola akun/relawan.
+  // Hanya dipakai Admin: daftar seluruh akun untuk kelola Penggerak.
   findAll() {
     return this.prisma.user.findMany({
       select: {

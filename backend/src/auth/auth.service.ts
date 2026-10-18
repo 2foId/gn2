@@ -128,7 +128,7 @@ export class AuthService {
     }
 
     const tokenHash = hashToken(token);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const emailToken = await tx.emailToken.findUnique({
         where: { tokenHash },
         include: { user: true },
@@ -141,7 +141,7 @@ export class AuthService {
       if (emailToken.user.emailVerifiedAt) {
         return {
           status: 'ALREADY_VERIFIED',
-          message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+          userId: emailToken.userId,
         };
       }
 
@@ -171,7 +171,7 @@ export class AuthService {
         if (currentToken?.user.emailVerifiedAt) {
           return {
             status: 'ALREADY_VERIFIED',
-            message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+            userId: currentToken.userId,
           };
         }
         if (currentToken && currentToken.expiresAt <= new Date()) {
@@ -187,9 +187,31 @@ export class AuthService {
 
       return {
         status: 'VERIFIED',
-        message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+        userId: emailToken.userId,
       };
     });
+
+    const user = await this.usersService.findById(result.userId);
+    if (!user) throw new BadRequestException('Akun verifikasi tidak ditemukan.');
+    const tokens = await this.issueTokens(user.id, user.email, user.role);
+    return {
+      status: result.status,
+      message: 'Email kamu sudah terverifikasi. Silakan masuk.',
+      onboardingDone: user.onboardingDone,
+      user: {
+        id: user.id,
+        nama: user.nama,
+        email: user.email,
+        role: user.role,
+        onboardingDone: user.onboardingDone,
+        dusun: user.dusun,
+        avatarUrl: user.avatarUrl,
+        bio: user.bio,
+        themePreference: user.themePreference,
+        kontak: user.kontak,
+      },
+      ...tokens,
+    };
   }
 
   // ---------- LOGIN ----------
@@ -221,6 +243,7 @@ export class AuthService {
           nama: user.nama,
           email: user.email,
           role: user.role,
+          onboardingDone: user.onboardingDone,
           dusun: user.dusun,
           avatarUrl: user.avatarUrl,
           bio: user.bio,
@@ -346,7 +369,7 @@ export class AuthService {
 
     const tokens = await this.issueTokens(user.id, user.email, user.role);
     return {
-      user: { id: user.id, nama: user.nama, email: user.email, role: user.role, avatarUrl: user.avatarUrl, bio: user.bio, themePreference: user.themePreference, kontak: user.kontak },
+      user: { id: user.id, nama: user.nama, email: user.email, role: user.role, onboardingDone: user.onboardingDone, avatarUrl: user.avatarUrl, bio: user.bio, themePreference: user.themePreference, kontak: user.kontak },
       ...tokens,
     };
   }

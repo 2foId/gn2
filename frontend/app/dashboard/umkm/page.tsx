@@ -137,7 +137,7 @@ export default function UmkmPage() {
         <div>
           <h1 className="font-display text-2xl font-semibold text-guyub-bambuDark">UMKM Dibantu</h1>
           <p className="font-body text-sm text-stone-600">
-            Warga berketerampilan membantu UMKM lokal naik kelas.
+            Penggerak berketerampilan membantu UMKM lokal naik kelas.
           </p>
         </div>
         <button
@@ -254,7 +254,7 @@ export default function UmkmPage() {
                   Tandai Selesai
                 </button>
               )}
-              {(user?.id === item.pemilikId || user?.role === 'ADMIN' || user?.role === 'RELAWAN') && (
+              {(user?.id === item.pemilikId || user?.role === 'ADMIN' || user?.role === 'PENGGERAK') && (
                 <button
                   type="button"
                   onClick={() => setDeleteUmkmId(item.id)}

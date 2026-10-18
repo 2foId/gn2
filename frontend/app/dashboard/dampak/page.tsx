@@ -10,16 +10,16 @@ interface DampakRingkasan {
     ekonomi: { umkmTerpenuhi: number; umkmResponse: number };
     sosial: { bantuanDisetujui: number; kesediaanBantu: number };
     budaya: { wasiatDibuat: number; wasiatBudaya: number };
-    sdm: { userAktif: number; relawanUsia18_30: number };
+    sdm: { userAktif: number; penggerakUsia18_30: number };
 }
 
-type MetricKey = 'langkahLulus' | 'penggunaUnikLulus' | 'umkmTerpenuhi' | 'umkmResponse' | 'bantuanDisetujui' | 'kesediaanBantu' | 'wasiatDibuat' | 'wasiatBudaya' | 'userAktif' | 'relawanUsia18_30';
+type MetricKey = 'langkahLulus' | 'penggunaUnikLulus' | 'umkmTerpenuhi' | 'umkmResponse' | 'bantuanDisetujui' | 'kesediaanBantu' | 'wasiatDibuat' | 'wasiatBudaya' | 'userAktif' | 'penggerakUsia18_30';
 type AnimatedMetrics = Record<MetricKey, number>;
 
 const EMPTY_METRICS: AnimatedMetrics = {
     langkahLulus: 0, penggunaUnikLulus: 0, umkmTerpenuhi: 0, umkmResponse: 0,
     bantuanDisetujui: 0, kesediaanBantu: 0, wasiatDibuat: 0, wasiatBudaya: 0,
-    userAktif: 0, relawanUsia18_30: 0,
+    userAktif: 0, penggerakUsia18_30: 0,
 };
 
 function metricsFrom(data: DampakRingkasan): AnimatedMetrics {
@@ -33,7 +33,7 @@ function metricsFrom(data: DampakRingkasan): AnimatedMetrics {
         wasiatDibuat: data.budaya.wasiatDibuat,
         wasiatBudaya: data.budaya.wasiatBudaya,
         userAktif: data.sdm.userAktif,
-        relawanUsia18_30: data.sdm.relawanUsia18_30,
+        penggerakUsia18_30: data.sdm.penggerakUsia18_30,
     };
 }
 
@@ -52,7 +52,7 @@ export default function DampakPage() {
     const inFlightRef = useRef<Promise<void> | null>(null);
 
     async function load() {
-        if (!user || (user.role !== 'ADMIN' && user.role !== 'RELAWAN')) {
+        if (!user || (user.role !== 'ADMIN' && user.role !== 'PENGGERAK')) {
             setLoading(false);
             return;
         }
@@ -128,11 +128,11 @@ export default function DampakPage() {
 
     if (loading) return <p className="font-body text-sm text-stone-600">Memuat ringkasan dampak…</p>;
 
-    if (!user || (user.role !== 'ADMIN' && user.role !== 'RELAWAN')) {
+    if (!user || (user.role !== 'ADMIN' && user.role !== 'PENGGERAK')) {
         return (
             <div className="rounded-2xl border-2 border-yellow-400 bg-white p-6 shadow-sm">
                 <h1 className="font-display text-2xl font-semibold text-guyub-bambuDark">Dampak</h1>
-                <p className="mt-3 font-body text-sm text-stone-700">Halaman ini khusus Relawan/RT dan Admin.</p>
+                <p className="mt-3 font-body text-sm text-stone-700">Halaman ini khusus Penggerak dan Admin.</p>
             </div>
         );
     }
@@ -215,18 +215,18 @@ export default function DampakPage() {
                     <div className="flex w-full flex-col gap-5 p-5 md:flex-row md:items-center md:justify-between md:gap-8 md:p-7">
                         <div className="flex items-center gap-4 md:block">
                             <img src="/icons/sdm.svg" alt="" className="h-8 w-8 md:mb-3 dark:brightness-0 dark:invert" />
-                            <p className="font-display text-7xl leading-none tabular-nums text-guyub-bambuDark md:text-8xl">{formatNumber(metrics.relawanUsia18_30)}</p>
+                            <p className="font-display text-7xl leading-none tabular-nums text-guyub-bambuDark md:text-8xl">{formatNumber(metrics.penggerakUsia18_30)}</p>
                         </div>
                         <div className="flex-1">
                             <p className="font-body text-xs uppercase tracking-wider text-guyub-tanah">SDM</p>
-                            <h2 className="mt-1 font-display text-2xl text-guyub-bambuDark">Relawan muda siap bergerak</h2>
-                            <p className="mt-2 max-w-2xl font-body text-base text-stone-700">Relawan usia 18–30 tahun membawa energi, keterampilan, dan gagasan baru untuk kebutuhan bersama.</p>
+                            <h2 className="mt-1 font-display text-2xl text-guyub-bambuDark">Penggerak muda siap bergerak</h2>
+                            <p className="mt-2 max-w-2xl font-body text-base text-stone-700">Penggerak usia 18–30 tahun membawa energi, keterampilan, dan gagasan baru untuk kebutuhan bersama.</p>
                             <p className="mt-2 font-body text-sm italic text-guyub-bambu">Kaitan 2045: bonus demografi menjadi kekuatan untuk masa depan.</p>
                         </div>
                         <div className="grid shrink-0 grid-cols-2 gap-3 md:w-72 md:grid-cols-1">
                             <div className="rounded-2xl bg-guyub-krem p-4">
                                 <p className="font-body text-xs text-stone-600">Pemuda aktif</p>
-                                <p className="mt-1 font-display text-3xl tabular-nums text-guyub-bambuDark">{formatNumber(metrics.relawanUsia18_30)}</p>
+                                <p className="mt-1 font-display text-3xl tabular-nums text-guyub-bambuDark">{formatNumber(metrics.penggerakUsia18_30)}</p>
                             </div>
                             <div className="rounded-2xl bg-guyub-krem p-4">
                                 <p className="font-body text-xs text-stone-600">Pengguna aktif 30 hari</p>
