@@ -1,4 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/auth-store';
 
 const fitur = [
   {
@@ -20,6 +25,35 @@ const fitur = [
 ];
 
 export default function LandingPage() {
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const isInitialized = useAuthStore((state) => state.isInitialized);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isInitialized) {
+      setLoading(true);
+      return;
+    }
+    setLoading(false);
+    if (!user) return;
+    if (!user.onboardingDone) {
+      router.replace('/onboarding');
+    } else {
+      router.replace('/dashboard/peta');
+    }
+  }, [user, isInitialized, router]);
+
+  if (loading) {
+    return (
+      <main className="landing-page relative min-h-screen overflow-hidden bg-guyub-krem">
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="font-body text-sm text-stone-600 dark:text-stone-300">Memuat sesi…</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="landing-page relative min-h-screen overflow-hidden bg-guyub-krem">
       {/* Layer gambar terpisah dari konten: ukuran diperkecil (bukan bg-cover/fit-to-screen)
@@ -31,7 +65,7 @@ export default function LandingPage() {
         style={{
           backgroundImage: "url('/background.jpg')",
           backgroundSize: '80%',
-          backgroundPosition: 'center 72%', // geser ke atas: makin kecil angka ini, makin naik
+          backgroundPosition: 'center 72%',
           WebkitMaskImage:
             'radial-gradient(ellipse 55% 50% at center, black 35%, transparent 75%)',
           maskImage:

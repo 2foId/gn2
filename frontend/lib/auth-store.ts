@@ -25,7 +25,6 @@ export interface AuthUser {
   bio?: string | null;
   keahlian?: string[];
   ketersediaan?: string | null;
-  tanggalLahir?: string | null;
   kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
   themePreference?: ThemePreference;
   kontak?: string | null;

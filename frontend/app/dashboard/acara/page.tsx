@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useAuthStore } from '@/lib/auth-store';
 import { UserIdentity } from '@/components/UserIdentity';
 import { KabupatenFilter } from '@/components/KabupatenFilter';
+import { KabupatenSelect } from '@/components/KabupatenSelect';
 
 interface Logistik {
   id: string;
@@ -44,8 +45,10 @@ export default function AcaraPage() {
     jenis: 'Kerja Bakti',
     lokasi: '',
     waktuMulai: '',
+    kabupatenKota: '',
     targetHadir: '1',
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
   const [kabupatenFilter, setKabupatenFilter] = useState<string>('');
@@ -82,13 +85,19 @@ export default function AcaraPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.kabupatenKota) {
+      setFormErrors((prev) => ({ ...prev, kabupatenKota: 'Pilih kabupaten/kota.' }));
+      return;
+    }
+    setFormErrors({});
     await api.post('/acara', {
       ...form,
       targetHadir: parseInt(form.targetHadir, 10) || 1,
       waktuMulai: new Date(form.waktuMulai).toISOString(),
     });
     setShowForm(false);
-    setForm({ nama: '', deskripsi: '', jenis: 'Kerja Bakti', lokasi: '', waktuMulai: '', targetHadir: '1' });
+    setFormErrors({});
+    setForm({ nama: '', deskripsi: '', jenis: 'Kerja Bakti', lokasi: '', kabupatenKota: '', waktuMulai: '', targetHadir: '1' });
     loadData();
   }
 
@@ -213,6 +222,17 @@ export default function AcaraPage() {
                 className="mt-1 w-full rounded-lg border border-stone-300 px-4 py-2 font-body"
               />
             </div>
+          </div>
+          <div>
+            <label className="block font-body text-sm font-medium text-stone-700">Kabupaten/Kota</label>
+            <KabupatenSelect
+              value={form.kabupatenKota}
+              onChange={(value) => setForm({ ...form, kabupatenKota: value })}
+              error={formErrors.kabupatenKota}
+            />
+            {formErrors.kabupatenKota && (
+              <p className="mt-1 font-body text-xs text-red-600">{formErrors.kabupatenKota}</p>
+            )}
           </div>
           <div className="max-w-[12rem]">
             <label className="block font-body text-sm font-medium text-stone-700">Target Kehadiran</label>

@@ -7,8 +7,8 @@ import { useAuthStore } from '@/lib/auth-store';
 import { LibraryShell } from '@/components/LibraryShell';
 import { LibraryNotesPanel } from '@/components/LibraryNotesPanel';
 import { LocalRegionPanel } from '@/components/pustaka/LocalRegionPanel';
-import { NewsPanel } from '@/components/pustaka/NewsPanel';
-import { SourceSearchPanel } from '@/components/pustaka/SourceSearchPanel';
+import { LiterasiSearchPanel } from '@/components/pustaka/LiterasiSearchPanel';
+import { librarySources, type LibrarySourceName } from '@/lib/library-sources';
 
 type PustakaTab = 'jelajah' | 'berita' | 'catatan' | 'sumber';
 
@@ -52,7 +52,17 @@ export default function PustakaPage() {
   }
 
   return (
-    <LibraryShell>
+    <>
+      {user?.role === 'PENGGERAK' && (
+        <div className="min-h-screen bg-guyub-krem px-6 py-12">
+          <h1 className="font-display text-3xl font-semibold text-guyub-bambuDark dark:text-stone-100">Pustaka</h1>
+          <p className="mt-4 font-body text-sm text-stone-600 dark:text-stone-300">
+            Fitur ini tidak tersedia untuk peran Penggerak.
+          </p>
+        </div>
+      )}
+      {!user || user?.role !== 'PENGGERAK' && (
+        <LibraryShell>
       <p className="font-body text-xs font-semibold uppercase tracking-wide text-guyub-tanah dark:text-amber-300">Belajar dan membaca</p>
       <h1 className="mt-2 font-display text-3xl font-semibold text-guyub-bambuDark dark:text-stone-100">Pustaka</h1>
       <div role="tablist" aria-label="Bagian Pustaka" className="mt-6 flex gap-2 overflow-x-auto border-b border-guyub-bambu/25 pb-2">
@@ -69,9 +79,8 @@ export default function PustakaPage() {
 
       <div id={`pustaka-panel-${tab}`} role="tabpanel" className="mt-6 min-w-0">
         {tab === 'jelajah' && <LocalRegionPanel />}
-        {tab === 'berita' && <NewsPanel />}
+        {(tab === 'berita' || tab === 'sumber') && <LiterasiSearchPanel />}
         {tab === 'catatan' && <LibraryNotesPanel />}
-        {tab === 'sumber' && <SourceSearchPanel />}
       </div>
 
       {tab === 'sumber' && <section className="mt-10 border-t border-guyub-bambu/25 pt-5">
@@ -87,5 +96,7 @@ export default function PustakaPage() {
         </div>
       </section>}
     </LibraryShell>
+      )}
+    </>
   );
 }

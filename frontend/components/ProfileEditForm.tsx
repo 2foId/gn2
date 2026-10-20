@@ -26,11 +26,10 @@ export interface ProfileEditValues {
   avatarUrl: string;
   keahlian: string[];
   ketersediaan: string;
-  tanggalLahir: string;
 }
 
 export function emptyProfileEditValues(nama = ''): ProfileEditValues {
-  return { nama, phone: '', kabupatenKota: '', bio: '', avatarUrl: '', keahlian: [], ketersediaan: '', tanggalLahir: '' };
+  return { nama, phone: '', kabupatenKota: '', bio: '', avatarUrl: '', keahlian: [], ketersediaan: '' };
 }
 
 export function ProfileEditForm({
@@ -41,6 +40,8 @@ export function ProfileEditForm({
   onAvatarUploaded,
   submitLabel = 'Simpan',
   error,
+  bidang,
+  isOnboarding = false,
   children,
 }: {
   initialValues: ProfileEditValues;
@@ -50,6 +51,8 @@ export function ProfileEditForm({
   onAvatarUploaded?: (avatarUrl: string) => void;
   submitLabel?: string;
   error?: string | null;
+  bidang?: string | null;
+  isOnboarding?: boolean;
   children?: ReactNode;
 }) {
   const [form, setForm] = useState(initialValues);
@@ -61,7 +64,18 @@ export function ProfileEditForm({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const kabupatenError = role === 'PENGGERAK' && touchedKabupaten && !form.kabupatenKota ? 'Kabupaten/kota wajib diisi' : '';
-  const canSubmit = !saving && !avatarLoading && form.nama.length <= 20 && !kabupatenError;
+  const disabledReason = saving
+    ? 'Sedang memproses…'
+    : avatarLoading
+    ? 'Sedang mengunggah foto…'
+    : form.nama.length > 20
+    ? 'Nama terlalu panjang (maksimal 20 karakter).'
+    : kabupatenError !== ''
+    ? kabupatenError
+    : isOnboarding && role === 'PENGGERAK' && !bidang
+    ? 'Pilih bidang terlebih dahulu.'
+    : null;
+  const canSubmit = !saving && !avatarLoading && form.nama.length <= 20 && !kabupatenError && !(isOnboarding && role === 'PENGGERAK' && !bidang);
 
   async function uploadAvatar(file: File | undefined) {
     if (!file) return;
@@ -156,10 +170,6 @@ export function ProfileEditForm({
       <section className="space-y-3 rounded-xl border border-guyub-gula bg-white p-4 dark:bg-stone-900">
         <h3 className="font-display text-lg font-semibold text-guyub-bambuDark dark:text-stone-100">Keahlian &amp; Ketersediaan</h3>
         <div>
-          <label htmlFor="profile-edit-birthdate" className="block font-body text-sm font-medium text-stone-700 dark:text-stone-200">Tanggal lahir (tidak ditampilkan ke orang lain)</label>
-          <input id="profile-edit-birthdate" type="date" value={form.tanggalLahir} onChange={(event) => setForm({ ...form, tanggalLahir: event.target.value })} className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 font-body" />
-        </div>
-        <div>
           <p className="font-body text-sm font-medium text-stone-700 dark:text-stone-200">Keahlian <span className="font-normal text-stone-500">({form.keahlian.length}/10)</span></p>
           <div className="mt-1 flex flex-wrap gap-2">
             {form.keahlian.map((skill) => <SkillChip key={skill} value={skill} selected onToggle={() => setForm((current) => ({ ...current, keahlian: current.keahlian.filter((item) => item !== skill) }))} />)}
@@ -181,8 +191,9 @@ export function ProfileEditForm({
       </section>
       {children}
       {error && <p role="alert" className="font-body text-sm text-guyub-merahBata">{error}</p>}
+      {disabledReason && !error && <p role="alert" className="font-body text-sm text-guyub-merahBata">{disabledReason}</p>}
       <div className="flex flex-wrap gap-2">
-        <button type="submit" disabled={canSubmit} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
+        <button type="submit" disabled={!canSubmit} className="rounded-full bg-guyub-bambuDark px-4 py-2 font-body text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
           {saving ? 'Menyimpan…' : submitLabel}
         </button>
         {onCancel && <button type="button" onClick={onCancel} className="rounded-full border border-stone-300 px-4 py-2 font-body text-sm text-stone-700 dark:border-stone-500 dark:text-stone-100">Batal</button>}

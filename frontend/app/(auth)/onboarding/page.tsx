@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuthStore, type Role } from '@/lib/auth-store';
 import { emptyProfileEditValues, ProfileEditForm, type ProfileEditValues } from '@/components/ProfileEditForm';
+import { LabelWajib } from '@/components/LabelWajib';
 
 const pelajarFeatures = [
   'Wasiat Ngapak',
@@ -15,7 +16,7 @@ const pelajarFeatures = [
 ];
 
 const penggerakFeatures = [
-  ...pelajarFeatures,
+  ...pelajarFeatures.filter((f) => f !== 'Pustaka'),
   'UMKM Dibantu',
   'Guyub Acara',
   'Verifikasi kebutuhan di peta',
@@ -82,7 +83,6 @@ export default function OnboardingPage() {
         ...profileFields,
         kabupatenKota: role === 'PENGGERAK' ? kabupatenKota : undefined,
         ...(role === 'PENGGERAK' ? { phone: phone ? `+62${phone.replace(/\D/g, '')}` : null } : {}),
-        tanggalLahir: values.tanggalLahir || undefined,
         ketersediaan: values.ketersediaan || undefined,
       });
       if (role === 'PENGGERAK') await api.post('/users/onboarding/bidang', { bidang });
@@ -105,7 +105,6 @@ export default function OnboardingPage() {
     avatarUrl: user?.avatarUrl ?? '',
     keahlian: user?.keahlian ?? [],
     ketersediaan: user?.ketersediaan ?? '',
-    tanggalLahir: user?.tanggalLahir ? new Date(user.tanggalLahir).toISOString().slice(0, 10) : '',
   };
 
   return (
@@ -130,7 +129,7 @@ export default function OnboardingPage() {
             title={role === 'PELAJAR' ? 'Pelajar' : 'Penggerak'}
             description={role === 'PELAJAR' ? 'Belajar, membaca, dan ikut tantangan literasi Jawa Tengah.' : 'Gunakan seluruh fitur untuk belajar dan menggerakkan kegiatan bersama.'}
             available={role === 'PELAJAR' ? pelajarFeatures : penggerakFeatures}
-            unavailable={role === 'PELAJAR' ? ['UMKM Dibantu', 'Guyub Acara'] : []}
+            unavailable={role === 'PENGGERAK' ? ['Pustaka'] : role === 'PELAJAR' ? ['UMKM Dibantu', 'Guyub Acara'] : []}
             loading={loading}
             disabled={loading}
             onChoose={() => { setError(''); setStep(3); }}
@@ -142,17 +141,20 @@ export default function OnboardingPage() {
             key={`${user?.id}-${role}`}
             initialValues={initialProfile}
             role={role}
+            bidang={role === 'PENGGERAK' ? bidang : null}
+            isOnboarding={true}
             onSubmit={finishOnboarding}
             submitLabel={loading ? 'Menyelesaikan…' : 'Selesai'}
             error={error}
             onAvatarUploaded={(avatarUrl) => updateUser({ avatarUrl })}
           >
             {role === 'PENGGERAK' && <div>
-              <label htmlFor="onboarding-bidang" className="block font-body text-sm font-medium text-stone-700 dark:text-stone-200">Bidang Penggerak <span className="text-guyub-merahBata">Wajib</span></label>
+              <LabelWajib htmlFor="onboarding-bidang">Bidang Penggerak</LabelWajib>
               <select id="onboarding-bidang" required value={bidang} onChange={(event) => setBidang(event.target.value)} className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-body text-stone-800 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-100">
                 <option value="">Pilih bidang</option>
                 {bidangPilihan.map((option) => <option key={option} value={option}>{option}</option>)}
               </select>
+              <p className="mt-1 font-body text-xs text-stone-500">Bidang wajib diisi untuk peran Penggerak.</p>
             </div>}
           </ProfileEditForm>
         </div>}

@@ -40,6 +40,7 @@ export default function UmkmPage() {
   const [showForm, setShowForm] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [pesan, setPesan] = useState('');
+  const [umkmError, setUmkmError] = useState<string | null>(null);
   const [responError, setResponError] = useState<string | null>(null);
   const [deleteUmkmId, setDeleteUmkmId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
@@ -116,10 +117,17 @@ export default function UmkmPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await api.post('/umkm', { ...form, kabupatenKota: kabupatenLabel ?? undefined });
-    setShowForm(false);
-    setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
-    loadData();
+    setUmkmError(null);
+    await api.post('/umkm', { ...form, kabupatenKota: kabupatenLabel ?? undefined })
+      .then(() => {
+        setShowForm(false);
+        setForm({ namaUsaha: '', kebutuhan: '', deskripsi: '', kategori: 'LAINNYA' });
+        loadData();
+      })
+      .catch((err: any) => {
+        const message = err.response?.data?.message;
+        setUmkmError(Array.isArray(message) ? message.join('. ') : message ?? 'Gagal memasang kebutuhan UMKM.');
+      });
   }
 
   async function handleRating(responseId: string, e: React.FormEvent) {
@@ -197,6 +205,8 @@ export default function UmkmPage() {
           {showForm ? 'Batal' : '+ Pasang Kebutuhan'}
         </button>
       </div>
+
+      {umkmError && <p className="mt-2 font-body text-sm text-guyub-merahBata">{umkmError}</p>}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-2xl bg-white p-6 shadow-sm">

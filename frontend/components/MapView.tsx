@@ -4,6 +4,7 @@ import { GeoJSON, MapContainer, TileLayer, Marker, Popup, Polygon, useMap, useMa
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { KABUPATEN_BOUNDS, KABUPATEN_CENTER } from '@/lib/kabupatenBounds';
 
 // Fix default marker icon Leaflet yang sering pecah di bundler modern
 const blueIcon = L.divIcon({
@@ -80,16 +81,19 @@ function getKategoriLabel(kategori: string) {
   }
 }
 
-// Pusat peta default: koordinat Purbalingga
-const PURBALINGGA_CENTER: [number, number] = [-7.3886, 109.3639];
+// Pusat peta default: Kota Surakarta
+const DEFAULT_CENTER: [number, number] = [-7.5667, 110.8333];
 
-// Bounding box kasar Kabupaten Purbalingga (sudut barat-daya & timur-laut).
-// Dipakai untuk mengunci area yang bisa dijelajahi user di peta.
-const PURBALINGGA_BOUNDS: L.LatLngBoundsExpression = [
-  [-7.8, 108.9], // ruang navigasi barat daya
-  [-6.9, 109.9], // ruang navigasi timur laut
-];
-const PURBALINGGA_LIMITS = L.latLngBounds(PURBALINGGA_BOUNDS);
+// Buffer kecil (derajat) di sekitar batas kabupaten agar ada ruang navigasi sedikit lebih lebar.
+const BOUNDS_BUFFER = 0.12;
+
+function expandBounds(bounds: [[number, number], [number, number]]): [[number, number], [number, number]] {
+  const [[swLat, swLng], [neLat, neLng]] = bounds;
+  return [
+    [swLat - BOUNDS_BUFFER, swLng - BOUNDS_BUFFER],
+    [neLat + BOUNDS_BUFFER, neLng + BOUNDS_BUFFER],
+  ];
+}
 
 export interface MapPin {
   id: string;
@@ -109,27 +113,38 @@ export function MapView({
   selectionMode = false,
   selectedLocation,
   onLocationSelect,
+  kabupaten = '',
 }: {
   pins: MapPin[];
   onSelect?: (pin: MapPin) => void;
   selectionMode?: boolean;
   selectedLocation?: [number, number];
   onLocationSelect?: (latitude: number, longitude: number) => void;
+  kabupaten?: string;
 }) {
   const [boundary, setBoundary] = useState<GeoJSON.GeoJsonObject | null>(null);
   const [boundaryWarning, setBoundaryWarning] = useState(false);
   const [boundaryWarningFading, setBoundaryWarningFading] = useState(false);
+  const [activeBounds, setActiveBounds] = useState<[[number, number], [number, number]]>(expandBounds(KABUPATEN_BOUNDS['Kota Surakarta']));
+  const [activeCenter, setActiveCenter] = useState<[number, number]>(DEFAULT_CENTER);
 
   useEffect(() => {
-    fetch('https://nominatim.openstreetmap.org/search?county=Purbalingga&state=Jawa%20Tengah&country=Indonesia&polygon_geojson=1&format=json')
+    const center = kabupaten && KABUPATEN_CENTER[kabupaten] ? KABUPATEN_CENTER[kabupaten] : DEFAULT_CENTER;
+    const baseBounds = kabupaten && KABUPATEN_BOUNDS[kabupaten] ? KABUPATEN_BOUNDS[kabupaten] : KABUPATEN_BOUNDS['Kota Surakarta'];
+    const bounds = expandBounds(baseBounds);
+    setActiveCenter(center);
+    setActiveBounds(bounds);
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(kabupaten + ', Jawa Tengah, Indonesia')}&polygon_geojson=1&format=json&limit=1`,
+    )
       .then((response) => response.json())
       .then((results: { geojson?: GeoJSON.GeoJsonObject }[]) => setBoundary(results[0]?.geojson ?? null))
       .catch(() => setBoundary(null));
-  }, []);
+  }, [kabupaten]);
 
   function resetInvalidDraftPin(marker: L.Marker) {
-    marker.setLatLng(PURBALINGGA_CENTER);
-    onLocationSelect?.(PURBALINGGA_CENTER[0], PURBALINGGA_CENTER[1]);
+    marker.setLatLng(activeCenter);
+    onLocationSelect?.(activeCenter[0], activeCenter[1]);
     setBoundaryWarning(true);
     setBoundaryWarningFading(false);
     window.setTimeout(() => setBoundaryWarningFading(true), 4400);
@@ -139,23 +154,23 @@ export function MapView({
   return (
     <div className={`relative resize-y overflow-hidden rounded-xl border-2 ${selectionMode ? 'z-30 border-guyub-gula shadow-2xl' : 'border-green-500'}`} style={{ height: '600px', minHeight: '360px', maxHeight: '80vh' }}>
       {selectionMode && <div className="pointer-events-none absolute inset-0 z-10 ring-4 ring-guyub-gula/70" />}
-      {selectionMode && boundaryWarning && <div className={`pointer-events-none absolute left-3 right-3 top-3 z-40 rounded-lg border-2 border-yellow-400 bg-gray-700/95 px-4 py-3 text-center font-body text-sm font-medium text-white transition-opacity duration-500 ${boundaryWarningFading ? 'opacity-0' : 'opacity-100'}`}>Tetap di dalam batas Kabupaten Purbalingga.</div>}
+      {selectionMode && boundaryWarning && <div className={`pointer-events-none absolute left-3 right-3 top-3 z-40 rounded-lg border-2 border-yellow-400 bg-gray-700/95 px-4 py-3 text-center font-body text-sm font-medium text-white transition-opacity duration-500 ${boundaryWarningFading ? 'opacity-0' : 'opacity-100'}`}>Tetap di dalam batas ${kabupaten || 'Jawa Tengah'}.</div>}
       <span className="pointer-events-none absolute bottom-2 left-3 z-20 rounded bg-white/90 px-2 py-1 font-body text-[11px] text-stone-600 shadow-sm">Tarik sudut kanan bawah untuk mengubah ukuran</span>
       <MapContainer
-        center={PURBALINGGA_CENTER}
-        zoom={12}
-        minZoom={10}
-        maxBounds={PURBALINGGA_BOUNDS}
+        center={activeCenter}
+        zoom={kabupaten ? 11 : 9}
+        minZoom={8}
+        maxBounds={activeBounds}
         maxBoundsViscosity={1.0}
         style={{ height: '100%', width: '100%' }}
       >
         <MapResizeWatcher />
         {boundary && <MapBoundaryFitter boundary={boundary} />}
-        {selectionMode && <MapLocationPicker boundary={boundary} onLocationSelect={onLocationSelect} />}
+        {selectionMode && <MapLocationPicker boundary={boundary} activeBounds={activeBounds} onLocationSelect={onLocationSelect} />}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          bounds={PURBALINGGA_BOUNDS}
+          bounds={activeBounds}
         />
         {boundary && <GeoJSON data={boundary} style={{ color: '#d97706', weight: 3, fillColor: '#facc15', fillOpacity: 0.06 }} />}
         {selectionMode && boundary && <Polygon positions={getMaskRings(boundary)} pathOptions={{ stroke: false, fillColor: '#4b5563', fillOpacity: 0.48 }} />}
@@ -183,8 +198,8 @@ export function MapView({
               dragend: (event) => {
                 const location = event.target.getLatLng();
                 const outsideBoundary = boundary
-                  ? !isInsidePurbalingga(location, boundary)
-                  : !PURBALINGGA_LIMITS.contains(location);
+                  ? !isInsideBoundary(location, boundary)
+                  : !L.latLngBounds(activeBounds).contains(location);
                 if (outsideBoundary) {
                   resetInvalidDraftPin(event.target);
                   return;
@@ -201,10 +216,10 @@ export function MapView({
   );
 }
 
-function MapLocationPicker({ boundary, onLocationSelect }: { boundary: GeoJSON.GeoJsonObject | null; onLocationSelect?: (latitude: number, longitude: number) => void }) {
+function MapLocationPicker({ boundary, activeBounds, onLocationSelect }: { boundary: GeoJSON.GeoJsonObject | null; activeBounds: [[number, number], [number, number]]; onLocationSelect?: (latitude: number, longitude: number) => void }) {
   useMapEvents({
     click: (event) => {
-      if ((!boundary && PURBALINGGA_LIMITS.contains(event.latlng)) || (boundary && isInsidePurbalingga(event.latlng, boundary))) {
+      if ((!boundary && L.latLngBounds(activeBounds).contains(event.latlng)) || (boundary && isInsideBoundary(event.latlng, boundary))) {
         onLocationSelect?.(event.latlng.lat, event.latlng.lng);
       }
     }
@@ -231,7 +246,7 @@ function getRings(boundary: GeoJSON.GeoJsonObject): Coordinate[][] {
   return [];
 }
 
-function isInsidePurbalingga(location: L.LatLng, boundary: GeoJSON.GeoJsonObject) {
+function isInsideBoundary(location: L.LatLng, boundary: GeoJSON.GeoJsonObject) {
   return getRings(boundary).some((ring) => pointInRing(location.lng, location.lat, ring));
 }
 

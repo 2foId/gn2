@@ -21,7 +21,6 @@ interface Profile {
     role: string;
     keahlian?: string[];
     ketersediaan?: string | null;
-    tanggalLahir?: string | null;
     kategoriUsia?: 'PEMUDA_18_30' | 'DEWASA' | null;
     themePreference?: ThemePreference;
     createdAt: string;
@@ -147,7 +146,6 @@ export function ProfileOverlay() {
             const response = await api.patch('/users/me/profile', {
                 ...profileFields,
                 ...(profile?.role === 'PENGGERAK' ? { phone: phone ? `+62${phone.replace(/\D/g, '')}` : null } : {}),
-                tanggalLahir: values.tanggalLahir || undefined,
                 ketersediaan: values.ketersediaan || undefined,
             });
             setProfile(response.data);
@@ -634,7 +632,6 @@ initialValues={{
                                          avatarUrl: profile?.avatarUrl ?? '',
                                          keahlian: profile?.keahlian ?? [],
                                          ketersediaan: profile?.ketersediaan ?? '',
-                                         tanggalLahir: profile?.tanggalLahir ? new Date(profile.tanggalLahir).toISOString().slice(0, 10) : '',
                                        }}
                                     role={profile.role}
                                     onSubmit={saveProfile}

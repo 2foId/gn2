@@ -20,6 +20,7 @@ const roleMenus: Record<Role, { href: string; label: string }[]> = {
     { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
     { href: '/dashboard/acara', label: 'Guyub Acara' },
     { href: '/dashboard/dampak', label: 'Dampak' },
+    { href: '/dashboard/iklan', label: 'Sorotan' },
   ],
   ADMIN: [
     { href: '/dashboard/wasiat', label: 'Wasiat Ngapak' },
@@ -28,6 +29,7 @@ const roleMenus: Record<Role, { href: string; label: string }[]> = {
     { href: '/dashboard/umkm', label: 'UMKM Dibantu' },
     { href: '/dashboard/acara', label: 'Guyub Acara' },
     { href: '/dashboard/dampak', label: 'Dampak' },
+    { href: '/dashboard/iklan', label: 'Sorotan' },
   ],
 };
 
@@ -134,7 +136,7 @@ export function Navbar() {
             </svg>
           </button>
           <button type="button" onClick={() => user && window.dispatchEvent(new CustomEvent('guyub:open-profile', { detail: { userId: user.id } }))} className="flex items-center gap-2 text-right">
-            {user && <UserAvatar user={{ ...user, bingkaiGaya }} size="sm" />}
+            {user && <UserAvatar user={{ ...user, bingkaiGaya }} size="xs" />}
             {user && (
               <>
                 <button type="button" onClick={() => setBingkaiStoreOpen(true)} aria-label="Buka toko bingkai" className="inline-flex items-center gap-1.5 rounded-full bg-guyub-krem px-3 py-1 font-body text-xs font-bold text-guyub-bambuDark"><img src="/icons/segitiga.svg" alt="" className="h-4 w-4 dark:brightness-0 dark:invert" />{currency.toLocaleString('id-ID')}</button>

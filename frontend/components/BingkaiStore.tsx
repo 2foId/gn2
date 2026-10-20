@@ -15,6 +15,25 @@ interface BingkaiItem {
   dipasang: boolean;
 }
 
+const BINGKA_PREVIEW_STYLES: Record<string, { border: string; shadow: string; ring: string }> = {
+  'border-guyub-gula': { border: 'border-guyub-gula', shadow: 'shadow-[0_0_0_3px_rgba(190,160,90,0.6)]', ring: 'ring-2 ring-guyub-gula' },
+  'border-guyub-bambuDark': { border: 'border-guyub-bambuDark', shadow: 'shadow-[0_0_0_3px_rgba(42,74,50,0.6)]', ring: 'ring-2 ring-guyub-bambuDark' },
+  'border-stone-400': { border: 'border-stone-400', shadow: 'shadow-[0_0_0_3px_rgba(168,168,168,0.6)]', ring: 'ring-2 ring-stone-400' },
+  'border-guyub-tanah': { border: 'border-guyub-tanah', shadow: 'shadow-[0_0_0_3px_rgba(150,116,81,0.6)]', ring: 'ring-2 ring-guyub-tanah' },
+  'border-guyub-merahBata': { border: 'border-guyub-merahBata', shadow: 'shadow-[0_0_0_3px_rgba(178,34,34,0.6)]', ring: 'ring-2 ring-guyub-merahBata' },
+};
+
+function BingkaiPreview({ gaya, nama }: { gaya: string; nama: string }) {
+  const style = BINGKA_PREVIEW_STYLES[gaya] ?? { border: 'border-guyub-bambuDark', shadow: 'shadow-[0_0_0_3px_rgba(42,74,50,0.6)]', ring: 'ring-2 ring-guyub-bambuDark' };
+  const inisial = nama.charAt(0).toUpperCase();
+  return (
+    <div className="relative w-16 h-16 rounded-full flex items-center justify-center border-2 bg-white shadow-sm">
+      <div className={`absolute inset-0 rounded-full ${style.border} ${style.shadow} ${style.ring}`} />
+      <span className="z-10 font-display text-xs font-bold text-guyub-bambuDark">{inisial}</span>
+    </div>
+  );
+}
+
 interface BingkaiListResponse {
   items: BingkaiItem[];
   currency: number;
@@ -87,11 +106,13 @@ export function BingkaiStore({ isOpen, onClose }: { isOpen: boolean; onClose: ()
             const isEquipped = b.dipasang;
             return (
               <div key={b.id} className="rounded-xl border border-stone-200 p-3 hover:bg-guyub-krem/50 transition">
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <div className="absolute -top-2 -left-2">
+                <div className="flex items-start gap-4">
+                  <div className="relative flex-shrink-0 mt-1">
+                    <BingkaiPreview gaya={b.gaya} nama={b.nama} />
+                    <div className="absolute -top-1 -left-1 flex items-center justify-center">
                       <UserAvatar user={{ id: b.id, nama: b.nama, avatarUrl: null, bingkaiGaya: b.gaya }} size="sm" />
                     </div>
+                    <p className="font-body text-[10px] text-stone-500 text-center mt-1">{b.nama}</p>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-body text-sm font-medium text-stone-800 truncate">{b.nama}</p>

@@ -102,13 +102,14 @@ export default function PetaPage() {
     judul: '',
     deskripsi: '',
     kategori: 'LAINNYA',
-    latitude: '-7.3886',
-    longitude: '109.3639',
+    latitude: '-7.5667',
+    longitude: '110.8333',
     alamat: '',
     dibutuhkanSebelum: '',
     preferensiRelawan: 'SEMUA',
   });
   const [kabupatenLabel, setKabupatenLabel] = useState<string | null>(null);
+  const [kabupatenForm, setKabupatenForm] = useState<string>('Kota Surakarta');
 
   useEffect(() => {
     if (!user) return;
@@ -214,6 +215,7 @@ export default function PetaPage() {
     try {
       await api.post('/bantuan', {
         ...form,
+        kabupatenKota: kabupatenForm || undefined,
         latitude: parseFloat(form.latitude),
         longitude: parseFloat(form.longitude),
         dibutuhkanSebelum: form.dibutuhkanSebelum ? new Date(form.dibutuhkanSebelum).toISOString() : undefined,
@@ -221,6 +223,7 @@ export default function PetaPage() {
       setMessage('Permintaan bantuan berhasil dikirim, menunggu verifikasi Penggerak.');
       setShowForm(false);
       setForm({ judul: '', deskripsi: '', kategori: 'LAINNYA', latitude: '-7.3886', longitude: '109.3639', alamat: '', dibutuhkanSebelum: '', preferensiRelawan: 'SEMUA' });
+      setKabupatenForm('');
       setTouched({});
       setErrors({});
       loadData();
@@ -327,6 +330,7 @@ export default function PetaPage() {
     if (!form.judul.trim()) newErrors.judul = 'Judul wajib diisi';
     if (form.deskripsi.length < 10) newErrors.deskripsi = 'Minimal 10 karakter';
     if (!form.alamat.trim()) newErrors.alamat = 'Alamat wajib diisi';
+    if (!kabupatenForm) newErrors.kabupaten = 'Pilih kabupaten/kota.';
     if (!form.dibutuhkanSebelum) newErrors.tenggat = 'Tenggat wajib diisi.';
     setErrors(newErrors);
     return newErrors;
@@ -470,12 +474,16 @@ export default function PetaPage() {
           {kabupatenLabel && (
             <div className="max-w-sm">
               <label className="block font-body text-sm font-medium text-stone-700">Kabupaten/Kota</label>
-              <input
-                readOnly
-                value={kabupatenLabel}
-                className="mt-1 w-full rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 font-body text-stone-700 dark:border-stone-600 dark:bg-stone-800 dark:text-stone-300"
+              <KabupatenSelect
+                value={kabupatenForm}
+                onChange={(value) => setKabupatenForm(value)}
+                onBlur={() => {
+                  setTouched((prev) => ({ ...prev, kabupaten: true }));
+                  validateForm();
+                }}
+                error={touched.kabupaten && errors.kabupaten ? errors.kabupaten : undefined}
               />
-              <p className="mt-1 font-body text-xs text-stone-500">Diisi otomatis dari profil.</p>
+              <p className="mt-1 font-body text-xs text-stone-500">Pilih kabupaten/kota tempat kebutuhan berlaku.</p>
             </div>
           )}
           <fieldset>
@@ -512,7 +520,7 @@ export default function PetaPage() {
       )}
 
       <div className="relative z-30 mt-6 overflow-hidden rounded-xl">
-        {showForm && <p className="mb-2 rounded-lg bg-guyub-gula px-4 py-2 font-body text-sm text-guyub-bambuDark">Klik peta untuk memilih titik, atau geser pin target ke lokasi yang tepat. <span className="underline font-bold italic">Hanya bisa memilih dalam kabupaten Purbalingga.</span></p>}
+        {showForm && <p className="mb-2 rounded-lg bg-guyub-gula px-4 py-2 font-body text-sm text-guyub-bambuDark">Klik peta untuk memilih titik, atau geser pin target ke lokasi yang tepat.</p>}
         {!showForm && <p className="mb-2 font-body text-xs text-stone-500">Ukuran peta dapat diubah dengan menarik sudut kanan bawah.</p>}
         <div className="mb-3 flex h-10 w-fit items-center rounded-full border border-stone-300 bg-white p-1">
           {[
@@ -534,12 +542,13 @@ export default function PetaPage() {
           pins={pins}
           selectionMode={showForm}
           selectedLocation={selectedLocation}
+          kabupaten={kabupatenForm || kabupatenFilter}
           onLocationSelect={(latitude, longitude) => setForm((current) => ({
             ...current,
             latitude: latitude.toFixed(6),
             longitude: longitude.toFixed(6),
           }))}
-        />
+/>
       </div>
 
       {
