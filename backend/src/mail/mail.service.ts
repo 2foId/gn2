@@ -1,42 +1,39 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
-export class MailService implements OnModuleInit {
+export class MailService {
     private readonly logger = new Logger(MailService.name);
-    private readonly transporter = nodemailer.createTransport({
-        host: process.env.MAIL_HOST,
-        port: Number(process.env.MAIL_PORT ?? 465),
-        secure: process.env.MAIL_SECURE !== 'false',
-        auth: {
-            user: process.env.MAIL_USER,
-            pass: process.env.MAIL_PASS,
-        },
-    });
-
-    // Cek koneksi SMTP saat server start, supaya salah konfigurasi langsung terlihat.
-    async onModuleInit() {
-        if (process.env.MAIL_DRIVER === 'console') return;
-        try {
-            await this.transporter.verify();
-            this.logger.log('SMTP Gmail siap');
-        } catch (err) {
-            this.logger.error('SMTP gagal terhubung. Cek MAIL_USER dan MAIL_PASS.', err);
-        }
-    }
 
     private async send(to: string, subject: string, html: string, text: string) {
         if (process.env.MAIL_DRIVER === 'console') {
             this.logger.log(`[MAIL ke ${to}] ${subject}\n${text}`);
             return;
         }
-        await this.transporter.sendMail({
-            from: process.env.MAIL_FROM,
-            to,
-            subject,
-            html,
-            text,
+
+        const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                'api-key': process.env.BREVO_API_KEY ?? '',
+                'content-type': 'application/json',
+                accept: 'application/json',
+            },
+            body: JSON.stringify({
+                sender: {
+                    email: process.env.MAIL_FROM,
+                    name: 'Guyub Ngapak',
+                },
+                to: [{ email: to }],
+                subject,
+                htmlContent: html,
+                textContent: text,
+            }),
         });
+
+        if (!res.ok) {
+            const detail = await res.text();
+            this.logger.error(`Brevo gagal: ${res.status} ${detail}`);
+            throw new Error(`Gagal mengirim email: ${res.status}`);
+        }
     }
 
     sendVerification(to: string, token: string) {
