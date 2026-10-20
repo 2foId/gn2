@@ -10,7 +10,9 @@ export class AcaraService {
   constructor(private prisma: PrismaService) { }
 
   async create(userId: string, dto: CreateAcaraDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
+    if (!KABUPATEN_DAFTAR.includes(dto.kabupatenKota as any)) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
     const acara = await this.prisma.acara.create({
       data: {
         nama: dto.nama,
@@ -21,7 +23,7 @@ export class AcaraService {
         waktuSelesai: dto.waktuSelesai ? new Date(dto.waktuSelesai) : undefined,
         foto: dto.foto,
         pembuatId: userId,
-        kabupatenKota: user?.kabupatenKota ?? null,
+        kabupatenKota: dto.kabupatenKota,
         targetHadir: dto.targetHadir ?? 1,
       },
     });
@@ -38,7 +40,7 @@ export class AcaraService {
     }
     return this.prisma.acara.findMany({
       where: {
-        ...(kabupaten ? { pembuat: { kabupatenKota: kabupaten } } : {}),
+        ...(kabupaten ? { kabupatenKota: kabupaten } : {}),
       },
       include: {
         pembuat: { select: { id: true, nama: true, avatarUrl: true } },

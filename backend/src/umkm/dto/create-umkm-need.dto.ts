@@ -10,7 +10,7 @@ export class CreateUmkmNeedDto {
   @IsString()
   @MinLength(5)
   @MaxLength(200)
-  kebutuhan: string; // mis. "butuh bantuan foto produk"
+  kebutuhan: string;
 
   @IsString()
   @MinLength(10)
@@ -18,7 +18,7 @@ export class CreateUmkmNeedDto {
   deskripsi: string;
 
   @IsEnum(SkillCategory, { message: 'Kategori keterampilan tidak valid' })
-  category: SkillCategory;
+  kategori: SkillCategory;
 
   @IsOptional()
   @IsDateString()

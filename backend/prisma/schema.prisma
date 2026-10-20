@@ -141,7 +141,6 @@ model User {
   currency      Int      @default(0)
   themePreference ThemePreference @default(LIGHT)
   keahlian      SkillCategory[] @default([])
-  tanggalLahir  DateTime?
   ketersediaan  String?  @db.VarChar(200)
   kabupatenKota String?
   bingkaiAktifId String?
@@ -612,7 +611,7 @@ model AcaraPeserta {
 // =========================================
 
 model Message {
-  id         String   @id
+  id         String    @id @default(uuid())
   senderId   String
   sender     User     @relation("MessageSender", fields: [senderId], references: [id])
   receiverId String

@@ -9,21 +9,6 @@ import { hitungLevel } from './level';
 export class UsersService {
   constructor(private prisma: PrismaService) { }
 
-  kategoriUsia(tanggalLahir?: Date | string | null): 'PEMUDA_18_30' | 'DEWASA' | null {
-    if (!tanggalLahir) return null;
-    const birthDate = new Date(tanggalLahir);
-    if (Number.isNaN(birthDate.getTime())) return null;
-
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getUTCFullYear();
-    const birthdayHasNotPassed = today.getMonth() < birthDate.getUTCMonth()
-      || (today.getMonth() === birthDate.getUTCMonth() && today.getDate() < birthDate.getUTCDate());
-    if (birthdayHasNotPassed) age -= 1;
-
-    if (age >= 18 && age <= 30) return 'PEMUDA_18_30';
-    return age > 30 && age <= 100 ? 'DEWASA' : null;
-  }
-
   findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
   }
@@ -71,16 +56,13 @@ export class UsersService {
         role: true,
         keahlian: true,
         ketersediaan: true,
-        tanggalLahir: true,
         createdAt: true,
       },
     });
     if (!user) throw new NotFoundException('Profil tidak ditemukan');
-    const { tanggalLahir, ...publicUser } = user;
     return {
-      ...publicUser,
+      ...user,
       phone: user.role === 'PENGGERAK' ? user.phone : null,
-      kategoriUsia: this.kategoriUsia(tanggalLahir),
     };
   }
 
@@ -98,7 +80,6 @@ export class UsersService {
         onboardingDone: true,
         keahlian: true,
         ketersediaan: true,
-        tanggalLahir: true,
         themePreference: true,
         kabupatenKota: true,
         createdAt: true,
@@ -108,7 +89,7 @@ export class UsersService {
         },
       },
     });
-    return user ? { ...user, kategoriUsia: this.kategoriUsia(user.tanggalLahir) } : null;
+    return user ? { ...user } : null;
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto) {
@@ -137,7 +118,6 @@ export class UsersService {
             : dto.phone.startsWith('08')
               ? `+62${dto.phone.slice(1)}`
               : dto.phone,
-      tanggalLahir: dto.tanggalLahir ? new Date(dto.tanggalLahir) : undefined,
     };
 
     const user = await this.prisma.user.update({
@@ -154,13 +134,12 @@ export class UsersService {
         onboardingDone: true,
         keahlian: true,
         ketersediaan: true,
-        tanggalLahir: true,
         themePreference: true,
         kabupatenKota: true,
         createdAt: true,
       },
     });
-    return { ...user, kategoriUsia: this.kategoriUsia(user.tanggalLahir) };
+    return { ...user };
   }
 
   async saveOnboardingAge(id: string, age: number) {

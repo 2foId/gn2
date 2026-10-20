@@ -12,9 +12,11 @@ export class UmkmService {
 
   async create(userId: string, dto: CreateUmkmNeedDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
+    const { kategori, ...rest } = dto;
     return this.prisma.umkmNeed.create({
       data: {
-        ...dto,
+        ...rest,
+        category: kategori,
         dibutuhkanSebelum: dto.dibutuhkanSebelum ? new Date(dto.dibutuhkanSebelum) : undefined,
         pemilikId: userId,
         kabupatenKota: user?.kabupatenKota ?? null,

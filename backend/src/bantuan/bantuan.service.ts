@@ -4,20 +4,17 @@ import { CreateBantuanDto } from './dto/create-bantuan.dto';
 import { UpdateBantuanDto } from './dto/update-bantuan.dto';
 import { BatalKesediaanDto } from './dto/batal-kesediaan.dto';
 import { BantuanStatus, KesediaanStatus, PreferensiRelawan, Prisma, SkillCategory } from '@prisma/client';
-import { UsersService } from '../users/users.service';
 import { CreateJamKontribusiDto } from './dto/create-jam-kontribusi.dto';
 import { KonfirmasiJamKontribusiDto } from './dto/konfirmasi-jam-kontribusi.dto';
 import { KABUPATEN_DAFTAR } from '../sorotan/sorotan.config';
 
 @Injectable()
 export class BantuanService {
-  constructor(private prisma: PrismaService, private usersService: UsersService) { }
+  constructor(private prisma: PrismaService) { }
 
-  private matchesPreferensiRelawan(user: { role: string; keahlian: SkillCategory[]; kategoriUsia: string | null }, preferensi: PreferensiRelawan) {
+  private matchesPreferensiRelawan(user: { role: string; keahlian: SkillCategory[] }, preferensi: PreferensiRelawan) {
     if (preferensi === PreferensiRelawan.SEMUA) return true;
     if (user.role !== 'PENGGERAK') return false;
-
-    if (preferensi === PreferensiRelawan.PEMUDA_18_30) return user.kategoriUsia === 'PEMUDA_18_30';
 
     if (preferensi === PreferensiRelawan.BERPENGALAMAN) {
       return user.keahlian.length > 0;
@@ -27,13 +24,15 @@ export class BantuanService {
   }
 
   async create(userId: string, dto: CreateBantuanDto) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { kabupatenKota: true } });
+    if (!KABUPATEN_DAFTAR.includes(dto.kabupatenKota as any)) {
+      throw new BadRequestException('Kabupaten/kota tidak valid.');
+    }
     return this.prisma.bantuanRequest.create({
       data: {
         ...dto,
         dibutuhkanSebelum: dto.dibutuhkanSebelum ? new Date(dto.dibutuhkanSebelum) : undefined,
         pembuatId: userId,
-        kabupatenKota: user?.kabupatenKota ?? null,
+        kabupatenKota: dto.kabupatenKota,
         status: BantuanStatus.MENUNGGU_VERIFIKASI,
       },
     });
@@ -79,28 +78,24 @@ export class BantuanService {
     return this.prisma.bantuanRequest.findMany({
       where,
       include: {
-        pembuat: { select: { id: true, nama: true, avatarUrl: true, role: true, keahlian: true, tanggalLahir: true } },
+        pembuat: { select: { id: true, nama: true, avatarUrl: true, role: true, keahlian: true } },
         kesediaanBantu: {
           where: { status: KesediaanStatus.AKTIF },
           take: preferensi && preferensi !== PreferensiRelawan.SEMUA ? undefined : 5,
           orderBy: { createdAt: 'asc' },
-          include: { user: { select: { id: true, nama: true, avatarUrl: true, role: true, keahlian: true, tanggalLahir: true } } },
+          include: { user: { select: { id: true, nama: true, avatarUrl: true, role: true, keahlian: true } } },
         },
         _count: { select: { kesediaanBantu: { where: { status: KesediaanStatus.AKTIF } } } },
       },
       orderBy: { createdAt: 'desc' },
     }).then((items) => items.map((item) => {
-      const { tanggalLahir: makerBirthDate, ...maker } = item.pembuat;
-      const makerCategory = this.usersService.kategoriUsia(makerBirthDate);
-      const safeMaker = { ...maker, kategoriUsia: makerCategory };
+      const safeMaker = { ...item.pembuat };
       const safeSupporters = item.kesediaanBantu.map((entry) => {
-        const { tanggalLahir, ...safeUser } = entry.user;
-        const kategoriUsia = this.usersService.kategoriUsia(tanggalLahir);
         return {
           ...entry,
-          user: { ...safeUser, kategoriUsia },
+          user: { ...entry.user },
           cocokPreferensi: this.matchesPreferensiRelawan(
-            { role: entry.user.role, keahlian: entry.user.keahlian ?? [], kategoriUsia },
+            { role: entry.user.role, keahlian: entry.user.keahlian ?? [] },
             preferensi ?? item.preferensiRelawan,
           ),
         };
@@ -127,18 +122,17 @@ export class BantuanService {
 
     return this.prisma.bantuanRequest.findMany({
       where,
-      include: { pembuat: { select: { id: true, nama: true, email: true, role: true, keahlian: true, tanggalLahir: true } } },
+      include: { pembuat: { select: { id: true, nama: true, email: true, role: true, keahlian: true } } },
       orderBy: { createdAt: 'desc' },
     }).then((items) => items.map((item) => {
-      const { tanggalLahir, ...safeMaker } = item.pembuat;
-      const kategoriUsia = this.usersService.kategoriUsia(tanggalLahir);
+      const safeMaker = { ...item.pembuat };
       const makerMatch = this.matchesPreferensiRelawan(
-        { role: item.pembuat.role, keahlian: item.pembuat.keahlian ?? [], kategoriUsia },
+        { role: item.pembuat.role, keahlian: item.pembuat.keahlian ?? [] },
         preferensi ?? item.preferensiRelawan,
       );
       return {
         ...item,
-        pembuat: { ...safeMaker, kategoriUsia },
+        pembuat: safeMaker,
         cocokPreferensi: !preferensi
           || preferensi === PreferensiRelawan.SEMUA
           || makerMatch,

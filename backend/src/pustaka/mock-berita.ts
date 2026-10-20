@@ -4,6 +4,7 @@ export interface NewsItem {
   source: string;
   date: string;
   link: string;
+  engine?: string;
 }
 
 export const MOCK_NEWS: NewsItem[] = [

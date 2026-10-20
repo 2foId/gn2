@@ -1,6 +1,7 @@
-import { IsString, IsEnum, IsNumber, IsOptional, MinLength, IsDateString, IsArray, IsNotEmpty, Validate } from 'class-validator';
+import { IsString, IsEnum, IsNumber, IsOptional, MinLength, IsDateString, IsArray, IsNotEmpty, Validate, IsIn } from 'class-validator';
 import { BantuanKategori, PreferensiRelawan } from '@prisma/client';
 import { ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { KABUPATEN_DAFTAR } from '../../sorotan/sorotan.config';
 
 @ValidatorConstraint({ name: 'futureDeadline', async: false })
 class FutureDeadlineConstraint implements ValidatorConstraintInterface {
@@ -36,6 +37,10 @@ export class CreateBantuanDto {
   @IsString()
   @IsNotEmpty()
   alamat: string;
+
+  @IsString()
+  @IsIn(KABUPATEN_DAFTAR, { message: 'Kabupaten/kota tidak valid.' })
+  kabupatenKota: string;
 
   @IsOptional()
   @IsEnum(PreferensiRelawan, { message: 'Preferensi relawan tidak valid' })

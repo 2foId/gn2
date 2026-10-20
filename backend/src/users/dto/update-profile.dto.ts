@@ -1,38 +1,12 @@
 import { Transform } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsDateString, IsEnum, IsOptional, IsString, Length, Matches, MaxLength, MinLength, Validate, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 import { SkillCategory } from '@prisma/client';
-
-@ValidatorConstraint({ name: 'validBirthDate', async: false })
-class ValidBirthDateConstraint implements ValidatorConstraintInterface {
-    validate(value: string) {
-        if (!value) return true;
-        const birthDate = new Date(value);
-        if (Number.isNaN(birthDate.getTime())) return false;
-
-        const today = new Date();
-        const birthParts = [birthDate.getUTCFullYear(), birthDate.getUTCMonth(), birthDate.getUTCDate()];
-        const todayParts = [today.getFullYear(), today.getMonth(), today.getDate()];
-        const compare = (left: number[], right: number[]) => {
-            for (let index = 0; index < left.length; index += 1) {
-                if (left[index] !== right[index]) return left[index] - right[index];
-            }
-            return 0;
-        };
-        const oldestDate = [...todayParts];
-        oldestDate[0] -= 100;
-        return compare(birthParts, todayParts) <= 0 && compare(birthParts, oldestDate) >= 0;
-    }
-
-    defaultMessage() {
-        return 'Tanggal lahir harus antara hari ini dan 100 tahun yang lalu';
-    }
-}
 
 export class UpdateProfileDto {
     @IsOptional()
     @IsString()
-    @MinLength(3)
-    @MaxLength(20, { message: 'Nama maksimal 20 karakter.' })
+    @MinLength(3, { message: 'Nama harus lebih atau sama dengan 3 karakter.' })
+    @MaxLength(20, { message: 'Nama tidak boleh lebih dari 20 karakter.' })
     nama?: string;
 
     @Transform(({ value }) => typeof value === 'string' ? value.trim() || null : value)
@@ -65,11 +39,6 @@ export class UpdateProfileDto {
     @IsString()
     @MaxLength(200, { message: 'Ketersediaan maksimal 200 karakter' })
     ketersediaan?: string;
-
-    @IsOptional()
-    @IsDateString({}, { message: 'Tanggal lahir harus berupa tanggal ISO yang valid' })
-    @Validate(ValidBirthDateConstraint)
-    tanggalLahir?: string;
 
     @IsOptional()
     @IsString()

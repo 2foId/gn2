@@ -9,6 +9,7 @@ import { CreateLibraryNoteDto } from './dto/create-library-note.dto';
 import { UpdateLibraryNoteDto } from './dto/update-library-note.dto';
 import { LibraryService } from './library.service';
 import { NewsQueryDto } from '../pustaka/dto/news-query.dto';
+import { LiterasiQueryDto } from '../pustaka/dto/literasi-query.dto';
 import { BeritaService } from '../pustaka/berita.service';
 
 const libraryLinks = [
@@ -94,5 +95,12 @@ export class LibraryController {
   @Get('daerah')
   listLocalRegions() {
     return this.libraryService.listLocalRegions();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.PELAJAR, Role.ADMIN)
+  @Get('cari')
+  cariLiterasi(@CurrentUser('id') userId: string, @Query() query: LiterasiQueryDto) {
+    return this.beritaService.searchLiterasi(userId, query);
   }
 }
