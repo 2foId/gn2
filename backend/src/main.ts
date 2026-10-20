@@ -14,10 +14,15 @@ async function bootstrap() {
   app.use(cookieParser());
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 
-  app.enableCors({
-    origin: config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000',
-    credentials: true, // wajib agar cookie refresh token terkirim
-  });
+        app.enableCors({
+     origin: [
+       'http://localhost:3000',
+       'https://gn2-frontend.vercel.app/',
+     ],
+     credentials: true,
+     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+     allowedHeaders: ['Content-Type', 'Authorization'],
+   });
 
   app.useGlobalPipes(
     new ValidationPipe({
